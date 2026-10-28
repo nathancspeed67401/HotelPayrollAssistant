@@ -1,0 +1,78 @@
+version: 2.1
+jobs:
+  windows-installer:
+    machine:
+      image: windows-server-2022-gui:current
+      shell: powershell.exe -ExecutionPolicy Bypass
+    resource_class: windows.medium
+    steps:
+      - checkout
+      - run:
+          name: Install build tools
+          command: |
+            choco install python312 tesseract innosetup -y --no-progress
+            if ($LASTEXITCODE -ne 0) { throw 'Chocolatey installation failed' }
+            $python = 'C:\Python312\python.exe'
+            if (!(Test-Path $python)) { throw 'Python 3.12 not found after installation' }
+            & $python -m pip install --upgrade pip
+            if ($LASTEXITCODE -ne 0) { throw 'pip upgrade failed' }
+            & $python -m pip install -r requirements.txt pyinstaller pytest
+            if ($LASTEXITCODE -ne 0) { throw 'Python dependency installation failed' }
+      - run:
+          name: Execute automated tests
+          command: |
+            New-Item -ItemType Directory -Force test-results | Out-Null
+            & 'C:\Python312\python.exe' -m pytest -q --junitxml=test-results/results.xml
+            if ($LASTEXITCODE -ne 0) { throw 'Tests failed' }
+      - run:
+          name: Bundle application with OCR
+          command: |
+            & 'C:\Python312\Scripts\pyinstaller.exe' --noconfirm --clean --onedir --windowed --collect-all sklearn --hidden-import sklearn.svm._classes --name 'Hotel Payroll Assistant' --add-data 'app/assets;app/assets' main.py
+            if ($LASTEXITCODE -ne 0) { throw 'PyInstaller failed' }
+            $internal = (Resolve-Path 'dist\Hotel Payroll Assistant\_internal').Path
+            $ocrSource = 'C:\Program Files\Tesseract-OCR'
+            if (!(Test-Path "$ocrSource\tesseract.exe")) { throw 'OCR engine missing' }
+            Copy-Item $ocrSource -Destination (Join-Path $internal 'tesseract') -Recurse
+            if (!(Test-Path (Join-Path $internal 'tesseract\tessdata\eng.traineddata'))) { throw 'OCR data missing' }
+      - run:
+          name: Build installer
+          command: |
+            $iscc='C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
+            if (!(Test-Path $iscc)) { throw 'Installer compiler missing' }
+            & $iscc 'installer\HotelPayrollAssistant.iss'
+            if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed' }
+      - run:
+          name: Silent install and launch smoke test
+          command: |
+            $installer=(Resolve-Path 'installer\output\HotelPayrollAssistant_Setup.exe').Path
+            $destination=Join-Path $env:TEMP 'HotelPayrollSmoke'
+            $process=Start-Process $installer -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',"/DIR=$destination") -Wait -PassThru
+            if ($process.ExitCode -ne 0) { throw "Installer returned $($process.ExitCode)" }
+            $exe=Join-Path $destination 'Hotel Payroll Assistant.exe'
+            if (!(Test-Path $exe)) { throw 'Program not installed' }
+            $smoke=Start-Process $exe -ArgumentList '--self-test' -Wait -PassThru
+            if ($smoke.ExitCode -ne 0) {
+              Get-Content (Join-Path $env:TEMP 'HotelPayrollAssistant_self_test_error.txt') -ErrorAction SilentlyContinue
+              throw "Installed program's self-test failed: $($smoke.ExitCode)"
+            }
+            $gui=Start-Process $exe -ArgumentList '--gui-self-test' -PassThru
+            if (!$gui.WaitForExit(60000)) {
+              Stop-Process -Id $gui.Id -Force
+              throw 'Installed GUI self-test timed out'
+            }
+            if ($gui.ExitCode -ne 0) { throw 'Installed GUI self-test failed' }
+            & 'C:\Python312\python.exe' -m pip freeze | Out-File -Encoding utf8 test-results/dependencies.txt
+            git rev-parse HEAD | Out-File -Encoding utf8 test-results/source-commit.txt
+            Get-FileHash $installer -Algorithm SHA256 | Format-List | Out-File -Encoding utf8 test-results/installer-sha256.txt
+      - store_test_results:
+          path: test-results
+      - store_artifacts:
+          path: test-results
+          destination: Verification
+      - store_artifacts:
+          path: installer/output/HotelPayrollAssistant_Setup.exe
+          destination: Windows-Setup
+workflows:
+  build-release:
+    jobs:
+      - windows-installer

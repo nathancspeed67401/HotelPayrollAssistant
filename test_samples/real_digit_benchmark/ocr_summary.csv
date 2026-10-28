@@ -1,0 +1,7 @@
+file,correct,missed,wrong,false_positive
+A01_Day_1.png,8,3,1,0
+A02_Overnight.png,3,8,1,0
+A03_Mixed.png,6,3,3,0
+A04_Late.png,7,2,1,0
+A05_Breaks.png,8,5,3,0
+A06_Blanks.png,2,1,1,0

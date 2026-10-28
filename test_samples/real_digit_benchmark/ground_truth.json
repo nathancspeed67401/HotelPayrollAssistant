@@ -1,0 +1,602 @@
+[
+  {
+    "file": "A01_Day_1.png",
+    "name": "Fictional Employee A",
+    "style": "normal",
+    "punches": [
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "8A",
+        "out1": "4P",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "9A",
+        "out1": "5P",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "7A",
+        "out1": "3P",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "8A",
+        "out1": "4P",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "8A",
+        "out1": "4P",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "9A",
+        "out1": "5P",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      }
+    ],
+    "expected": {
+      "week1": 32.0,
+      "week2": 16.0,
+      "total": 48.0,
+      "regular": 48.0,
+      "overtime": 0
+    },
+    "digit_origin": "scikit-learn load_digits indices >=1100, UCI optical handwritten digits",
+    "note": "Real human digits; synthetic composition, punctuation, names and AM/PM."
+  },
+  {
+    "file": "A02_Overnight.png",
+    "name": "Fictional Employee B",
+    "style": "blue",
+    "punches": [
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "11P",
+        "out1": "7A",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "12A",
+        "out1": "8A",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "12A",
+        "out1": "8A",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "10P",
+        "out1": "6A",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "12A",
+        "out1": "8A",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "11P",
+        "out1": "7A",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      }
+    ],
+    "expected": {
+      "week1": 32.0,
+      "week2": 16.0,
+      "total": 48.0,
+      "regular": 48.0,
+      "overtime": 0
+    },
+    "digit_origin": "scikit-learn load_digits indices >=1100, UCI optical handwritten digits",
+    "note": "Real human digits; synthetic composition, punctuation, names and AM/PM."
+  },
+  {
+    "file": "A03_Mixed.png",
+    "name": "Fictional Employee C",
+    "style": "soft",
+    "punches": [
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "9:15A",
+        "out1": "5:30P",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "12A",
+        "out1": "9:15A",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "2:30P",
+        "out1": "11P",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "8A",
+        "out1": "12P",
+        "in2": "1P",
+        "out2": "5P"
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "8A",
+        "out1": "4P",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      }
+    ],
+    "expected": {
+      "week1": 26.0,
+      "week2": 16.0,
+      "total": 42.0,
+      "regular": 42.0,
+      "overtime": 0
+    },
+    "digit_origin": "scikit-learn load_digits indices >=1100, UCI optical handwritten digits",
+    "note": "Real human digits; synthetic composition, punctuation, names and AM/PM."
+  },
+  {
+    "file": "A04_Late.png",
+    "name": "Fictional Employee D",
+    "style": "rotation",
+    "punches": [
+      {
+        "in1": "12A",
+        "out1": "8A",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "9P",
+        "out1": "5A",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "10P",
+        "out1": "6A",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "12A",
+        "out1": "8A",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "12A",
+        "out1": "8A",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      }
+    ],
+    "expected": {
+      "week1": 24.0,
+      "week2": 16.0,
+      "total": 40.0,
+      "regular": 40.0,
+      "overtime": 0
+    },
+    "digit_origin": "scikit-learn load_digits indices >=1100, UCI optical handwritten digits",
+    "note": "Real human digits; synthetic composition, punctuation, names and AM/PM."
+  },
+  {
+    "file": "A05_Breaks.png",
+    "name": "Fictional Employee E",
+    "style": "faded",
+    "punches": [
+      {
+        "in1": "6:30A",
+        "out1": "11:30A",
+        "in2": "12P",
+        "out2": "3P"
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "8A",
+        "out1": "12P",
+        "in2": "1P",
+        "out2": "5P"
+      },
+      {
+        "in1": "7A",
+        "out1": "11A",
+        "in2": "12P",
+        "out2": "4P"
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "10A",
+        "out1": "2P",
+        "in2": "3P",
+        "out2": "7P"
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      }
+    ],
+    "expected": {
+      "week1": 24.0,
+      "week2": 8.0,
+      "total": 32.0,
+      "regular": 32.0,
+      "overtime": 0
+    },
+    "digit_origin": "scikit-learn load_digits indices >=1100, UCI optical handwritten digits",
+    "note": "Real human digits; synthetic composition, punctuation, names and AM/PM."
+  },
+  {
+    "file": "A06_Blanks.png",
+    "name": "Fictional Employee F",
+    "style": "compression",
+    "punches": [
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "11:45P",
+        "out1": "7:15A",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "12P",
+        "out1": "9:30P",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": ""
+      }
+    ],
+    "expected": {
+      "week1": 7.5,
+      "week2": 9.5,
+      "total": 17.0,
+      "regular": 17.0,
+      "overtime": 0
+    },
+    "digit_origin": "scikit-learn load_digits indices >=1100, UCI optical handwritten digits",
+    "note": "Real human digits; synthetic composition, punctuation, names and AM/PM."
+  }
+]

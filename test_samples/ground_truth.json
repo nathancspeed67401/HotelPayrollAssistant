@@ -1,0 +1,1132 @@
+[
+  {
+    "file": "01_Daytime.png",
+    "name": "Avery Wilson",
+    "style": "clean",
+    "expected": {
+      "week1": 40.0,
+      "week2": 40.0,
+      "total": 80.0,
+      "regular": 80.0,
+      "overtime": 0.0
+    },
+    "punches": [
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "8A",
+        "out1": "4P",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "8A",
+        "out1": "4P",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "8A",
+        "out1": "4P",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "8A",
+        "out1": "4P",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "8A",
+        "out1": "4P",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "8A",
+        "out1": "4P",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "8A",
+        "out1": "4P",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "8A",
+        "out1": "4P",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "8A",
+        "out1": "4P",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "8A",
+        "out1": "4P",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      }
+    ],
+    "valid_expected": true
+  },
+  {
+    "file": "02_Overnight.png",
+    "name": "Jordan Miles",
+    "style": "blue_ink",
+    "expected": {
+      "week1": 40.0,
+      "week2": 24.0,
+      "total": 64.0,
+      "regular": 64.0,
+      "overtime": 0.0
+    },
+    "punches": [
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "12A",
+        "out1": "8A",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "12A",
+        "out1": "8A",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "12A",
+        "out1": "8A",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "12A",
+        "out1": "8A",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "12A",
+        "out1": "8A",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "12A",
+        "out1": "8A",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "12A",
+        "out1": "8A",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "12A",
+        "out1": "8A",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      }
+    ],
+    "valid_expected": true
+  },
+  {
+    "file": "03_SplitShifts.png",
+    "name": "Morgan Bennett",
+    "style": "clean",
+    "expected": {
+      "week1": 40.0,
+      "week2": 24.0,
+      "total": 64.0,
+      "regular": 64.0,
+      "overtime": 0.0
+    },
+    "punches": [
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "8A",
+        "out1": "12P",
+        "in2": "1P",
+        "out2": "5P",
+        "recognized": {}
+      },
+      {
+        "in1": "8A",
+        "out1": "12P",
+        "in2": "1P",
+        "out2": "5P",
+        "recognized": {}
+      },
+      {
+        "in1": "8A",
+        "out1": "12P",
+        "in2": "1P",
+        "out2": "5P",
+        "recognized": {}
+      },
+      {
+        "in1": "8A",
+        "out1": "12P",
+        "in2": "1P",
+        "out2": "5P",
+        "recognized": {}
+      },
+      {
+        "in1": "8A",
+        "out1": "12P",
+        "in2": "1P",
+        "out2": "5P",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "8A",
+        "out1": "12P",
+        "in2": "1P",
+        "out2": "5P",
+        "recognized": {}
+      },
+      {
+        "in1": "8A",
+        "out1": "12P",
+        "in2": "1P",
+        "out2": "5P",
+        "recognized": {}
+      },
+      {
+        "in1": "8A",
+        "out1": "12P",
+        "in2": "1P",
+        "out2": "5P",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      }
+    ],
+    "valid_expected": true
+  },
+  {
+    "file": "04_Overtime.png",
+    "name": "Taylor Collins",
+    "style": "clean",
+    "expected": {
+      "week1": 48.0,
+      "week2": 45.0,
+      "total": 93.0,
+      "regular": 80.0,
+      "overtime": 13.0
+    },
+    "punches": [
+      {
+        "in1": "8A",
+        "out1": "4P",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "8A",
+        "out1": "4P",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "8A",
+        "out1": "4P",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "8A",
+        "out1": "4P",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "8A",
+        "out1": "4P",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "8A",
+        "out1": "4P",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "8A",
+        "out1": "5P",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "8A",
+        "out1": "5P",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "8A",
+        "out1": "5P",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "8A",
+        "out1": "5P",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "8A",
+        "out1": "5P",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      }
+    ],
+    "valid_expected": true
+  },
+  {
+    "file": "05_MixedShifts.png",
+    "name": "Casey Brooks",
+    "style": "blue_ink",
+    "expected": {
+      "week1": 20.0,
+      "week2": 16.75,
+      "total": 36.75,
+      "regular": 36.75,
+      "overtime": 0
+    },
+    "punches": [
+      {
+        "in1": "3P",
+        "out1": "11P",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "11P",
+        "out1": "7A",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "12A",
+        "out1": "4A",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "2:30A",
+        "out1": "10A",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "12P",
+        "out1": "9:15P",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      }
+    ],
+    "valid_expected": true
+  },
+  {
+    "file": "06_MultipleFonts.png",
+    "name": "Drew Parker",
+    "style": "rotated",
+    "expected": {
+      "week1": 23.5,
+      "week2": 17.5,
+      "total": 41.0,
+      "regular": 41.0,
+      "overtime": 0
+    },
+    "punches": [
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "7:45A",
+        "out1": "3:15P",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "11:30P",
+        "out1": "7:30A",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "6A",
+        "out1": "10A",
+        "in2": "10:30A",
+        "out2": "2:30P",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "9A",
+        "out1": "5:30P",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "2P",
+        "out1": "11P",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      }
+    ],
+    "valid_expected": true
+  },
+  {
+    "file": "07_MissingPunch.png",
+    "name": "Riley Hayes",
+    "style": "clean",
+    "expected": {
+      "week1": null,
+      "week2": null,
+      "total": null,
+      "regular": null,
+      "overtime": null
+    },
+    "punches": [
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "8A",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "12A",
+        "out1": "8A",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      }
+    ],
+    "valid_expected": false
+  },
+  {
+    "file": "08_AmbiguousTime.png",
+    "name": "Sam Ellis",
+    "style": "faded",
+    "expected": {
+      "week1": null,
+      "week2": null,
+      "total": null,
+      "regular": null,
+      "overtime": null
+    },
+    "punches": [
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "9:15",
+        "out1": "5P",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "8A",
+        "out1": "4P",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      }
+    ],
+    "valid_expected": false
+  },
+  {
+    "file": "09_PhonePhoto.png",
+    "name": "Alex Rivera",
+    "style": "phone",
+    "expected": {
+      "week1": 24.0,
+      "week2": 16.0,
+      "total": 40.0,
+      "regular": 40.0,
+      "overtime": 0
+    },
+    "punches": [
+      {
+        "in1": "9A",
+        "out1": "5P",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "12A",
+        "out1": "8A",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "12A",
+        "out1": "8A",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "7A",
+        "out1": "3P",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "9P",
+        "out1": "5A",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      }
+    ],
+    "valid_expected": true
+  },
+  {
+    "file": "10_Blank.png",
+    "name": "Jamie Quinn",
+    "style": "clean",
+    "expected": {
+      "week1": 0.0,
+      "week2": 0.0,
+      "total": 0.0,
+      "regular": 0.0,
+      "overtime": 0
+    },
+    "punches": [
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      },
+      {
+        "in1": "",
+        "out1": "",
+        "in2": "",
+        "out2": "",
+        "recognized": {}
+      }
+    ],
+    "valid_expected": true
+  }
+]

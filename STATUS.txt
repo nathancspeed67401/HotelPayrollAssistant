@@ -1,0 +1,2 @@
+v0.3 — ENGINEERING BUILD ONLY (NOT BOSS-READY)
+31 tests passed; real-digit-composite benchmark: 34/66 = 51.52%; original handwritten sheet: no usable punches. Windows installer is not built/tested. Do not use for live payroll.

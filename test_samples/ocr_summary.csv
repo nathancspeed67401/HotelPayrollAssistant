@@ -1,0 +1,11 @@
+file,scenario,name_correct,filled,correct,missed,wrong_valid,false_positive
+01_Daytime.png,clean,True,20,19,1,0,0
+02_Overnight.png,blue_ink,True,16,15,0,1,0
+03_SplitShifts.png,clean,True,32,27,3,2,0
+04_Overtime.png,clean,True,22,14,8,0,0
+05_MixedShifts.png,blue_ink,True,10,9,0,1,0
+06_MultipleFonts.png,rotated,True,12,8,3,1,0
+07_MissingPunch.png,clean,True,3,3,0,0,0
+08_AmbiguousTime.png,faded,True,4,2,2,0,0
+09_PhonePhoto.png,phone,False,10,6,3,1,0
+10_Blank.png,clean,True,0,0,0,0,0

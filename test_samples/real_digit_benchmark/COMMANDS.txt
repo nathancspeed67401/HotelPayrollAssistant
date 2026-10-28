@@ -1,0 +1,14 @@
+# Run from the HotelPayrollAssistant directory (development PC)
+python -m pip install -r requirements.txt pytest
+python -m pytest -q
+python tests/evaluate_real_digits.py
+python tests/evaluate_ocr.py
+python main.py --self-test
+
+To regenerate the trained model (developer only):
+python tests/train_digit_model.py
+
+To regenerate benchmark forms (developer only):
+python tests/generate_real_handwriting_sheets.py
+
+DO NOT use the software for unattended payroll.

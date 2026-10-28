@@ -1,0 +1,519 @@
+{
+  "punches_filled": 129,
+  "correct_filled": 103,
+  "missed_filled": 20,
+  "incorrect_filled": 6,
+  "blank_fields": 431,
+  "false_positive_valid_times": 0,
+  "exact_filled_accuracy_percent": 79.84,
+  "valid_false_positive_percent": 0.0,
+  "cases": [
+    {
+      "file": "01_Daytime.png",
+      "scenario": "clean",
+      "name_expected": "Avery Wilson",
+      "name_read": "Avery Wilson",
+      "name_correct": true,
+      "filled": 20,
+      "correct": 19,
+      "missed": 1,
+      "wrong_valid": 0,
+      "false_positive": 0,
+      "expected_hours": {
+        "week1": 40.0,
+        "week2": 40.0,
+        "total": 80.0,
+        "regular": 80.0,
+        "overtime": 0.0
+      },
+      "ocr_hours": {
+        "week1": null,
+        "week2": null,
+        "total": null,
+        "regular": null,
+        "overtime": null
+      },
+      "validation_warnings": [
+        "First Saturday of pay period is missing",
+        "Week 1 Thursday: Missing clock-in or clock-out"
+      ],
+      "mismatches": [
+        {
+          "row": 6,
+          "field": "out1",
+          "expected": "4P",
+          "read": "",
+          "ocr": "AP"
+        }
+      ]
+    },
+    {
+      "file": "02_Overnight.png",
+      "scenario": "blue_ink",
+      "name_expected": "Jordan Miles",
+      "name_read": "Jordan Miles",
+      "name_correct": true,
+      "filled": 16,
+      "correct": 15,
+      "missed": 0,
+      "wrong_valid": 1,
+      "false_positive": 0,
+      "expected_hours": {
+        "week1": 40.0,
+        "week2": 24.0,
+        "total": 64.0,
+        "regular": 64.0,
+        "overtime": 0.0
+      },
+      "ocr_hours": {
+        "week1": 38.55,
+        "week2": 24.0,
+        "total": 62.55,
+        "regular": 62.55,
+        "overtime": 0
+      },
+      "validation_warnings": [
+        "First Saturday of pay period is missing"
+      ],
+      "mismatches": [
+        {
+          "row": 7,
+          "field": "in1",
+          "expected": "12A",
+          "read": "127A",
+          "ocr": "127A"
+        }
+      ]
+    },
+    {
+      "file": "03_SplitShifts.png",
+      "scenario": "clean",
+      "name_expected": "Morgan Bennett",
+      "name_read": "Morgan Bennett",
+      "name_correct": true,
+      "filled": 32,
+      "correct": 27,
+      "missed": 3,
+      "wrong_valid": 2,
+      "false_positive": 0,
+      "expected_hours": {
+        "week1": 40.0,
+        "week2": 24.0,
+        "total": 64.0,
+        "regular": 64.0,
+        "overtime": 0.0
+      },
+      "ocr_hours": {
+        "week1": null,
+        "week2": null,
+        "total": null,
+        "regular": null,
+        "overtime": null
+      },
+      "validation_warnings": [
+        "First Saturday of pay period is missing",
+        "Week 1 Wednesday: Missing clock-in or clock-out",
+        "Week 2 Sunday: Missing clock-in or clock-out",
+        "Week 2 Monday: Missing clock-in or clock-out"
+      ],
+      "mismatches": [
+        {
+          "row": 2,
+          "field": "out1",
+          "expected": "12P",
+          "read": "2P",
+          "ocr": "2P"
+        },
+        {
+          "row": 4,
+          "field": "out1",
+          "expected": "12P",
+          "read": "2P",
+          "ocr": "2P"
+        },
+        {
+          "row": 5,
+          "field": "out1",
+          "expected": "12P",
+          "read": "",
+          "ocr": "P"
+        },
+        {
+          "row": 9,
+          "field": "out1",
+          "expected": "12P",
+          "read": "",
+          "ocr": "P"
+        },
+        {
+          "row": 10,
+          "field": "out1",
+          "expected": "12P",
+          "read": "",
+          "ocr": "P"
+        }
+      ]
+    },
+    {
+      "file": "04_Overtime.png",
+      "scenario": "clean",
+      "name_expected": "Taylor Collins",
+      "name_read": "Taylor Collins",
+      "name_correct": true,
+      "filled": 22,
+      "correct": 14,
+      "missed": 8,
+      "wrong_valid": 0,
+      "false_positive": 0,
+      "expected_hours": {
+        "week1": 48.0,
+        "week2": 45.0,
+        "total": 93.0,
+        "regular": 80.0,
+        "overtime": 13.0
+      },
+      "ocr_hours": {
+        "week1": null,
+        "week2": null,
+        "total": null,
+        "regular": null,
+        "overtime": null
+      },
+      "validation_warnings": [
+        "First Saturday of pay period is missing",
+        "Week 1 Sunday: Missing clock-in or clock-out",
+        "Week 1 Tuesday: Missing clock-in or clock-out",
+        "Week 2 Tuesday: Missing clock-in or clock-out",
+        "Week 2 Wednesday: Missing clock-in or clock-out"
+      ],
+      "mismatches": [
+        {
+          "row": 1,
+          "field": "in1",
+          "expected": "8A",
+          "read": "",
+          "ocr": "1"
+        },
+        {
+          "row": 1,
+          "field": "out1",
+          "expected": "4P",
+          "read": "",
+          "ocr": "4PP"
+        },
+        {
+          "row": 2,
+          "field": "out1",
+          "expected": "4P",
+          "read": "",
+          "ocr": "4PP"
+        },
+        {
+          "row": 4,
+          "field": "out1",
+          "expected": "4P",
+          "read": "",
+          "ocr": "AP"
+        },
+        {
+          "row": 5,
+          "field": "in1",
+          "expected": "8A",
+          "read": "",
+          "ocr": "1"
+        },
+        {
+          "row": 5,
+          "field": "out1",
+          "expected": "4P",
+          "read": "",
+          "ocr": "AP"
+        },
+        {
+          "row": 11,
+          "field": "in1",
+          "expected": "8A",
+          "read": "",
+          "ocr": "A"
+        },
+        {
+          "row": 12,
+          "field": "in1",
+          "expected": "8A",
+          "read": "",
+          "ocr": "A"
+        }
+      ]
+    },
+    {
+      "file": "05_MixedShifts.png",
+      "scenario": "blue_ink",
+      "name_expected": "Casey Brooks",
+      "name_read": "Casey Brooks",
+      "name_correct": true,
+      "filled": 10,
+      "correct": 9,
+      "missed": 0,
+      "wrong_valid": 1,
+      "false_positive": 0,
+      "expected_hours": {
+        "week1": 20.0,
+        "week2": 16.75,
+        "total": 36.75,
+        "regular": 36.75,
+        "overtime": 0
+      },
+      "ocr_hours": {
+        "week1": 18.8,
+        "week2": 16.75,
+        "total": 35.55,
+        "regular": 35.55,
+        "overtime": 0
+      },
+      "validation_warnings": [
+        "First Saturday of pay period is missing"
+      ],
+      "mismatches": [
+        {
+          "row": 4,
+          "field": "in1",
+          "expected": "12A",
+          "read": "112A",
+          "ocr": "112A"
+        }
+      ]
+    },
+    {
+      "file": "06_MultipleFonts.png",
+      "scenario": "rotated",
+      "name_expected": "Drew Parker",
+      "name_read": "Drew Parker",
+      "name_correct": true,
+      "filled": 12,
+      "correct": 8,
+      "missed": 3,
+      "wrong_valid": 1,
+      "false_positive": 0,
+      "expected_hours": {
+        "week1": 23.5,
+        "week2": 17.5,
+        "total": 41.0,
+        "regular": 41.0,
+        "overtime": 0
+      },
+      "ocr_hours": {
+        "week1": null,
+        "week2": null,
+        "total": null,
+        "regular": null,
+        "overtime": null
+      },
+      "validation_warnings": [
+        "First Saturday of pay period is missing",
+        "Week 1 Monday: Missing clock-in or clock-out",
+        "Week 1 Tuesday: Missing clock-in or clock-out",
+        "Week 2 Sunday: Missing clock-in or clock-out"
+      ],
+      "mismatches": [
+        {
+          "row": 3,
+          "field": "in1",
+          "expected": "11:30P",
+          "read": "",
+          "ocr": "14:30P"
+        },
+        {
+          "row": 4,
+          "field": "in2",
+          "expected": "10:30A",
+          "read": "",
+          "ocr": "10:350A"
+        },
+        {
+          "row": 9,
+          "field": "in1",
+          "expected": "9A",
+          "read": "",
+          "ocr": ""
+        },
+        {
+          "row": 11,
+          "field": "in1",
+          "expected": "2P",
+          "read": "9P",
+          "ocr": "9P"
+        }
+      ]
+    },
+    {
+      "file": "07_MissingPunch.png",
+      "scenario": "clean",
+      "name_expected": "Riley Hayes",
+      "name_read": "Riley Hayes",
+      "name_correct": true,
+      "filled": 3,
+      "correct": 3,
+      "missed": 0,
+      "wrong_valid": 0,
+      "false_positive": 0,
+      "expected_hours": {
+        "week1": null,
+        "week2": null,
+        "total": null,
+        "regular": null,
+        "overtime": null
+      },
+      "ocr_hours": {
+        "week1": null,
+        "week2": null,
+        "total": null,
+        "regular": null,
+        "overtime": null
+      },
+      "validation_warnings": [
+        "First Saturday of pay period is missing",
+        "Week 1 Monday: Missing clock-in or clock-out"
+      ],
+      "mismatches": []
+    },
+    {
+      "file": "08_AmbiguousTime.png",
+      "scenario": "faded",
+      "name_expected": "Sam Ellis",
+      "name_read": "Sam Ellis",
+      "name_correct": true,
+      "filled": 4,
+      "correct": 2,
+      "missed": 2,
+      "wrong_valid": 0,
+      "false_positive": 0,
+      "expected_hours": {
+        "week1": null,
+        "week2": null,
+        "total": null,
+        "regular": null,
+        "overtime": null
+      },
+      "ocr_hours": {
+        "week1": null,
+        "week2": null,
+        "total": null,
+        "regular": null,
+        "overtime": null
+      },
+      "validation_warnings": [
+        "First Saturday of pay period is missing",
+        "Week 1 Sunday: Missing clock-in or clock-out",
+        "Week 2 Tuesday: Missing clock-in or clock-out"
+      ],
+      "mismatches": [
+        {
+          "row": 2,
+          "field": "in1",
+          "expected": "9:15",
+          "read": "",
+          "ocr": "9:19"
+        },
+        {
+          "row": 11,
+          "field": "in1",
+          "expected": "8A",
+          "read": "",
+          "ocr": "1"
+        }
+      ]
+    },
+    {
+      "file": "09_PhonePhoto.png",
+      "scenario": "phone",
+      "name_expected": "Alex Rivera",
+      "name_read": "Alex Riveras",
+      "name_correct": false,
+      "filled": 10,
+      "correct": 6,
+      "missed": 3,
+      "wrong_valid": 1,
+      "false_positive": 0,
+      "expected_hours": {
+        "week1": 24.0,
+        "week2": 16.0,
+        "total": 40.0,
+        "regular": 40.0,
+        "overtime": 0
+      },
+      "ocr_hours": {
+        "week1": null,
+        "week2": null,
+        "total": null,
+        "regular": null,
+        "overtime": null
+      },
+      "validation_warnings": [
+        "First Saturday of pay period is missing",
+        "Week 1 Saturday: Missing clock-in or clock-out",
+        "Week 2 Saturday: Missing clock-in or clock-out",
+        "Week 2 Tuesday: Missing clock-in or clock-out"
+      ],
+      "mismatches": [
+        {
+          "row": 1,
+          "field": "in1",
+          "expected": "9A",
+          "read": "",
+          "ocr": "PA"
+        },
+        {
+          "row": 5,
+          "field": "in1",
+          "expected": "12A",
+          "read": "2A",
+          "ocr": "2A"
+        },
+        {
+          "row": 8,
+          "field": "in1",
+          "expected": "7A",
+          "read": "",
+          "ocr": "A"
+        },
+        {
+          "row": 11,
+          "field": "in1",
+          "expected": "9P",
+          "read": "",
+          "ocr": "P"
+        }
+      ]
+    },
+    {
+      "file": "10_Blank.png",
+      "scenario": "clean",
+      "name_expected": "Jamie Quinn",
+      "name_read": "Jamie Quinn",
+      "name_correct": true,
+      "filled": 0,
+      "correct": 0,
+      "missed": 0,
+      "wrong_valid": 0,
+      "false_positive": 0,
+      "expected_hours": {
+        "week1": 0.0,
+        "week2": 0.0,
+        "total": 0.0,
+        "regular": 0.0,
+        "overtime": 0
+      },
+      "ocr_hours": {
+        "week1": 0.0,
+        "week2": 0.0,
+        "total": 0.0,
+        "regular": 0.0,
+        "overtime": 0
+      },
+      "validation_warnings": [
+        "First Saturday of pay period is missing"
+      ],
+      "mismatches": []
+    }
+  ]
+}

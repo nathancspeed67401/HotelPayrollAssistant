@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+build/
+dist/
+*.spec
+installer/output/
+test-results/
+current_session.json
+scans/

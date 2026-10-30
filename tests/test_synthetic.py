@@ -93,8 +93,24 @@ def test_save_restore_and_approval_state(sample_cases,tmp_path):
     restored=load_session(str(path));assert restored[0].to_dict()==s.to_dict()
     assert restored[0].approved
 
-def test_document_pdf_ingestion(sample_cases):
-    pages=load_pages(str(FIXTURES.parent/'Synthetic_Test_Timesheets.pdf'))
+def test_document_pdf_ingestion(sample_cases, tmp_path):
+    from PIL import Image
+
+    # Build a real multipage input from the committed PNG fixtures. The source
+    # checkout must not depend on a PDF left behind by a developer's generator.
+    pdf = tmp_path / 'timesheets.pdf'
+    images = []
+    try:
+        for case in sample_cases:
+            with Image.open(FIXTURES.parent / case['file']) as image:
+                images.append(image.convert('RGB'))
+        images[0].save(pdf, 'PDF', resolution=150, save_all=True,
+                       append_images=images[1:])
+    finally:
+        for image in images:
+            image.close()
+
+    pages=load_pages(str(pdf))
     assert len(pages)==10
     assert pages[0].width>=900 and pages[0].height>=1200
 

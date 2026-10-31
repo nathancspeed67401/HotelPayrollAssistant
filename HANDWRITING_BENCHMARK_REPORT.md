@@ -82,8 +82,9 @@ and `test_samples/aligned_line_evaluation.json`.
 
 Fresh local checks: 63 tests passed, three GUI tests skipped because this Linux
 session has no display; the real-model installation/export self-test passed
-under the offline process guard. The Windows build and installer must be
-verified independently. See `BUILD_STATUS.md`.
+under the offline process guard. The new Windows installer workflow
+passed as CircleCI job 8 on source `7a242619cb55b5d30f70be42a7f87b1806df7774`,
+including installed-model and GUI checks. See `BUILD_STATUS.md`.
 
 ## Release state
 

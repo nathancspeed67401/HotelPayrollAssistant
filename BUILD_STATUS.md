@@ -1,24 +1,30 @@
 # Build status — October 30, 2026
 
-The previous PDF-test fix was verified by CircleCI Windows job 5 on commit
-`4c9fe5c11b10b527827061efbdbd0b4dafb29381` and merged to main as
-`3f55ec2f7305b7bfa9391b6edcf17b01df8454be`. That success predates the new
-whole-entry recognition engine and does not verify this changed installer.
+CircleCI Windows installer job 8 passed for the new handwriting reader:
+https://circleci.com/gh/nathancspeed67401/HotelPayrollAssistant/8
 
-Current local verification: 63 tests passed, three GUI tests skipped because
-this Linux session has no display. The application self-test passed under an
-outbound-network deny filter, exercising the actual pinned ONNX model, digit
-model, Tesseract, payroll math, and Excel export. A Python 3.12 Windows x64 wheel
-for the pinned ONNX Runtime 1.31.1 dependency was also confirmed available.
+Tested source commit: `7a242619cb55b5d30f70be42a7f87b1806df7774`.
+Tested source tree: `4880975bb8c3fcc9eb63c3b3c457ee737655d8cf`.
 
-The Windows workflow now downloads and verifies the public handwriting model
-before tests, collects ONNX Runtime in PyInstaller, bundles model attribution
-and licensing, and executes the real ONNX graph in the installed self-test.
-It also silently installs the Inno Setup build and opens/closes the installed
-GUI. Artifacts record the source SHA, dependency versions, installer hash, and
-test results.
+The successful Windows workflow downloaded and SHA-256 verified the pinned
+public model, ran the automated tests (including Windows GUI tests), built the
+Inno Setup installer, silently installed it, exercised the installed ONNX,
+digit model, Tesseract, payroll calculation and Excel export paths, and opened
+and closed the installed GUI. Its artifacts include verification records and
+`Windows-Setup/HotelPayrollAssistant_Setup.exe`.
 
-A fresh Windows result for this changed tree is pending. The handwriting
-engineering build remains for supervised testing. Its measured development
-results are in `HANDWRITING_BENCHMARK_REPORT.md`; it still misses five of sixteen
-unambiguous punches on the one original handwritten scan.
+The green status was retrieved through GitHub. The installer binary and
+individual CircleCI logs/artifact listing have not been downloaded in this
+session; a normal Windows laptop has not been tested here.
+
+Local verification: 63 tests passed, three GUI tests skipped for lack of a
+display. The real-model installation/export self-test also passed under an
+outbound-network deny filter. The final documentation/research follow-up does
+not change the application, dependencies, tests, CI workflow, or installer
+source from the tested commit above.
+
+Handwriting reliability remains incomplete: 11 of 16 unambiguous punches were
+recovered on the original development sheet; five need manual entry and two
+additional punches omit AM/PM. All 14 rows require review before approval.
+See `HANDWRITING_BENCHMARK_REPORT.md` for measured development results and
+`experiments/RESEARCH_NOTES.md` for excluded experiments.

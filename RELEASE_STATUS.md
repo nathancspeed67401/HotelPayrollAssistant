@@ -16,6 +16,7 @@ pairs, a valid pay-period date, an employee, and the archived original are
 required before export. No OCR suggestion finalizes pay.
 
 63 local tests and the offline real-model self-test pass; three local GUI tests
-are skipped for lack of a display. A fresh Windows installer run is pending;
-see `BUILD_STATUS.md`. Do not represent the previous successful build as a
-verification of this new recognition engine.
+are skipped for lack of a display. The fresh Windows installer workflow passed
+as CircleCI job 8 on source commit `7a242619cb55b5d30f70be42a7f87b1806df7774`,
+including installed-model and GUI checks. See `BUILD_STATUS.md` for the tested
+source, artifact location, and verification limits.

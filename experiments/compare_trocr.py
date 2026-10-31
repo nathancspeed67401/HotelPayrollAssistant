@@ -10,6 +10,19 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from experiments.offline_guard import block_network
 
 
+def minimum_token_confidence(tokens, probabilities, pad_id, eos_id):
+    """Exclude generated padding; composite model.config may lack token IDs."""
+    ending = set(eos_id) if isinstance(eos_id, (list, tuple)) else {eos_id}
+    values = []
+    for token, probability in zip(tokens, probabilities):
+        if pad_id is not None and token == pad_id:
+            break
+        values.append(float(probability))
+        if token in ending:
+            break
+    return min(values) if values else 0.
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--input', required=True)
@@ -32,6 +45,12 @@ def main():
                                                use_fast=False)
     model = VisionEncoderDecoderModel.from_pretrained(args.model_dir,
                                     local_files_only=True, weights_only=True).eval()
+    pad_id = model.generation_config.pad_token_id
+    if pad_id is None:
+        pad_id = model.config.decoder.pad_token_id
+    eos_id = model.generation_config.eos_token_id
+    if eos_id is None:
+        eos_id = model.config.decoder.eos_token_id
     report = {'model_dir': args.model_dir, 'views': {}, 'registered': args.registered,
               'purpose': 'development experiment; no independent accuracy claim'}
     started = time.perf_counter()
@@ -52,15 +71,8 @@ def main():
                 strings = processor.batch_decode(generated.sequences, skip_special_tokens=True)
                 for i, ((row, field, _), raw) in enumerate(zip(batch, strings)):
                     normalized, error = normalize_time(raw)
-                    token_scores = []
                     tokens = generated.sequences[i,1:].tolist()
-                    for token, probability in zip(tokens, scores[i]):
-                        if token == model.config.pad_token_id:
-                            break
-                        token_scores.append(float(probability))
-                        if token == model.config.eos_token_id:
-                            break
-                    confidence = min(token_scores) if token_scores else 0.
+                    confidence = minimum_token_confidence(tokens, scores[i], pad_id, eos_id)
                     output.append({'page': page, 'row': row, 'field': field,
                         'raw': raw, 'score': confidence,
                         'time': normalized if not error else '', 'parse_error': error})

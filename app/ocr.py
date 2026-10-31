@@ -1,26 +1,18 @@
-"""Experimental offline OCR for the hotel's specific two-week form.
+"""Offline aligned whole-entry OCR for the hotel's two-week form.
 
-Packs Tesseract in the Windows installer. Fixed-position text extraction is a
-first pass, not suitable for unattended payroll. Every sheet is human approved.
+Every suggestion remains provisional until all rows are visually reviewed.
 """
 from __future__ import annotations
 import os
 import sys
 import re
 from pathlib import Path
-from PIL import Image, ImageOps, ImageEnhance, ImageFilter
+from PIL import Image, ImageOps, ImageEnhance
 import pytesseract
-from .core import Sheet, ShiftDay, DISPLAY, digest_bytes, normalize_time
+from .core import Sheet, DISPLAY, TIME_FIELDS, digest_bytes
 from .handwriting import recognize_time
-
-REF_W, REF_H = 958, 1350
-# Measured from the user-supplied paper form. Rows of the form (not phone calendar days).
-ROW_Y = [(368 + 39*i, 405 + 39*i) for i in range(7)] + [(673 + 38*i, 712 + 38*i) for i in range(7)]
-# Image coordinate columns: day/date, Time In, Time Out, Time In, Time Out, Total.
-COL_X = ((218, 338), (347, 463), (480, 600), (610, 731))
-# Source form's printed 'Time In' starts at x~=213 (content area x=215-345)
-# Actual 1st time-in x=212-347; first time-out x=347-478.
-COL_X = ((215, 342), (350, 474), (479, 602), (612, 738))
+from .form_geometry import REF_W, REF_H, ROW_Y, COL_X, find_form_grid
+from .line_ocr import Reading, LineOCRError, choose_time, get_recognizer
 
 
 def configure_tesseract() -> None:
@@ -111,31 +103,41 @@ def scan_page(path: str, image: Image.Image, page_number: int = 1) -> Sheet:
     guess = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", guess)
     sheet.employee = guess if len(guess.strip()) >= 3 else ""
     warnings = ["OCR is preliminary. Verify every punch against the photo before approving."]
+    grid = find_form_grid(image)
+    if grid is None:
+        warnings.append('Printed grid could not be aligned reliably. Check that each punch belongs to the correct row and column.')
+    cells = []
     for idx, (top, bottom) in enumerate(ROW_Y):
-        day = ShiftDay()
-        for field, (left, right) in zip(("in1", "out1", "in2", "out2"), COL_X):
-            cell = _crop_scaled(image, (left, top + 3, right, bottom - 3))
-            if _likely_blank(cell):
-                guess = ""
-            else:
-                # Blue-ink handwritten-digit model is conservative: it only
-                # supplies an answer when every character is high confidence.
-                # It is a preliminary entry, never approved payroll.
-                suggestion, confidence, status = recognize_time(cell)
-                if suggestion:
-                    guess = suggestion
-                else:
-                    guess = _cleanup_time(_ocr_cell(cell, "0123456789:APMapm"))
-                    if status not in ('no-visible-blue-ink', 'ok'):
-                        warnings.append(
-                            f"Week {idx//7+1} {DISPLAY[idx%7]}, {field}: "
-                            f"handwriting model abstained ({status}); check photograph")
-            day.recognized[field] = guess
-            # Never place unreadable/ambiguous OCR into trusted payroll entries.
-            if guess and not normalize_time(guess)[1]:
-                setattr(day, field, guess)
-            elif not _likely_blank(cell):
-                warnings.append(f"Week {idx//7+1} {DISPLAY[idx%7]}, {field}: writing present but OCR could not read a valid time")
-        sheet.days[idx] = day
+        for col, (field, (left, right)) in enumerate(zip(TIME_FIELDS, COL_X)):
+            fixed = _crop_scaled(image, (left, top + 3, right, bottom - 3))
+            cell = grid.crop_cell(image, idx, col) if grid else fixed
+            cells.append((idx, field, cell, fixed, _likely_blank(cell)))
+    active = [cell for cell in cells if not cell[4]]
+    line_readings = [[] for _ in active]
+    if active:
+        try:
+            line_readings = get_recognizer().recognize([cell[2] for cell in active])
+        except LineOCRError as exc:
+            warnings.append(f'{exc}. Enter unread punches from the photo.')
+    for (idx, field, cell, fixed, _), readings in zip(active, line_readings):
+        # The small digit model supplies conservative suggestions and flags
+        # plausible conflicting readings from the aligned and legacy crops.
+        for source, crop in [('digits-grid', cell)] + ([('digits-fixed', fixed)] if grid else []):
+            text, confidence, _status = recognize_time(crop, minimum_confidence=.60)
+            if text:
+                readings.append(Reading(text, confidence, confidence, source))
+        decision = choose_time(readings)
+        sheet.days[idx].recognized[field] = decision.raw
+        if decision.value:
+            setattr(sheet.days[idx], field, decision.value)
+        else:
+            detail = f' (read: {decision.raw[:60]})' if decision.raw else ''
+            reason = {'conflicting-readings': 'different possible times',
+                      'uncertain-reading': 'uncertain time',
+                      'unreadable-or-missing-AM/PM': 'unreadable time or missing AM/PM'}[decision.status]
+            warnings.append(f'Week {idx//7+1} {DISPLAY[idx%7]}, {field}: writing needs review — {reason}{detail}')
+    for idx, field, _cell, _fixed, blank in cells:
+        if blank:
+            sheet.days[idx].recognized[field] = ''
     sheet.scan_warnings = warnings
     return sheet

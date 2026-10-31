@@ -1,54 +1,93 @@
-# Hotel Payroll Assistant — Handwriting Research / v0.3
-**Date:** October 28, 2026  
-**Status:** Engineering test build, NOT approved for unattended or live payroll.
+# Handwriting recognition development report — October 30, 2026
 
-## What was actually used
+## Current implementation
 
-The real human-written numerals come from the open **UCI Optical Recognition of Handwritten Digits** collection as distributed through the `scikit-learn` `load_digits()` dataset (1,797 samples). We used indices **0–1099** to train a small SVC digit recognizer and disjoint indices **1100–1796** to generate the test sheets. There was **no download from the UCI website in this environment**; the same public dataset was already bundled with the installed scikit-learn package. Its origin and documentation were independently verified online.
+The reader locates neutral printed grid lines, validates all four clock columns
+and both seven-row sections, and corrects individual cell perspective. This
+fixes the bottom rows' leading clock-out digits being clipped by fixed crops.
+If a reliable grid cannot be found, fixed crops are retained with a warning.
 
-Six fictional, 14-day, two-punch-pair timesheets were built to match the hotel's printed form's page and table geometry. The samples include daylight, overnight, split-shift, late-night, faded, slightly rotated, and JPEG-compressed forms. **Digits are genuine, but whole times, AM/PM letters, names, punctuation, and layout were assembled synthetically**. This is not a true dataset of workers completing timesheets, nor does it verify general handwriting recognition.
+A local PP-OCRv6 medium recognition graph reads each visible whole entry through
+four image views: original color, isolated blue ink, cleaned blue ink, and a
+narrower ink crop. The existing UCI digit model adds conservative suggestions
+and flags plausible disagreements. A conflicting plausible time remains empty;
+a weak single view cannot fill a punch. Invalid text is not stripped into a
+valid time, and a terminal digit 4 is never converted to A. Missing AM/PM stays
+unresolved. Model confidence is a heuristic, not a calibrated accuracy claim.
 
-## Measured OCR accuracy (entire times, exact match)
+The ONNX weights are pinned to RapidAI/RapidOCR v3.10.0 and verified against
+SHA-256 `eef444829dbbe18d7fea59a3f6eb75647518d2b3a9568d27c92e42940204894b`.
+The runtime disables ONNX telemetry before opening a session. The application
+contains no model downloader; the separate public-weight setup/build command
+fetches the model before any employee sheet is processed. All private-sheet
+experiments also ran under a Linux process-wide outbound-network deny filter.
 
-| Test | Previous OCR | v0.3 hybrid OCR |
-|:--|--:|--:|
-| Genuine-digit composite test sheets | **13/66 = 19.70%** | **34/66 = 51.52%** |
-| Missed handwritten values | 37 | 22 |
-| Incorrect nonblank time values | 16 | 10 |
-| False valid time values in blank cells | 0/270 | 0/270 |
-| Earlier handwriting-like font set (separate 10 forms) | **103/129 = 79.84%** | **103/129 = 79.84%** |
-| Original scanned employee timesheet | Unreliable | **0 usable punches recovered** |
+## End-to-end results
 
-All v0.3 numbers above were obtained with the updated application `scan_page()` and benchmark ground truth, not model predictions alone. The trained digit model uses a **0.90 minimum confidence per individual component** to abstain on uncertain handwriting; other cells still fall back to Tesseract OCR. Model confidence is not a calibrated probability of an entire time being correct. All times remain provisional until the manager visually verifies every row.
+These numbers use `app.ocr.scan_page()`, not selected recognizer outputs.
 
-A separate model-only experiment accepted **25 of 66** composite time entries at its conservative 0.90 cutoff, all 25 matching the known answers *in this six-form test set*. This is not evidence of 100% real-world accuracy and does not replace the 34/66 end-to-end figure.
+| Set | Valid filled truth | Correct | Unread | Incorrect filled | Blank cells | False filled blank | Ambiguous truth | Ambiguous auto-filled |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Original handwritten development scan | 16 | 11 | 5 | 0 | 38 | 0 | 2 | 0 |
+| Six genuine-digit composite forms | 66 | 36 | 30 | 0 | 270 | 0 | 0 | 0 |
+| Ten printed-font forms | 128 | 128 | 0 | 0 | 431 | 0 | 1 | 0 |
 
-## Tests run
+The 129 written cells in the font set contain 128 unambiguous times plus one
+entry without AM/PM. The new count reports that ambiguous cell separately;
+it is not silently counted as correct recognition.
 
-- `python -m pytest -q` → **31 passed**.
-- `python main.py --self-test` → **passed on Linux** (model load, Tesseract availability, payroll arithmetic and Excel export).
-- `python tests/evaluate_real_digits.py` → **34/66 correct** after v0.3 upgrade.
-- `python tests/evaluate_ocr.py` → **103/129 correct** (unchanged old baseline).
-- The real example `/mnt/data/_timesheet_ref.png` was reprocessed on this machine: **no valid punches populated**.
-- **No Windows installer has been built or installed/tested** in this session. Workflows are configured to package the trained model and all necessary dependencies, but they are unexecuted here.
+A/4 confusion remains the main failure in the five unread unambiguous punches.
+Two other written punches omit AM/PM and must be resolved from an authoritative
+record.
+No actual employee name, source image, crop, or per-cell private prediction is
+included in this repository.
 
-## Limitations and payroll safety
+A fresh run of the old pipeline on the original scan recovered zero correct
+unambiguous punches and incorrectly filled one suffix-missing entry. Historical
+v0.3 composite results were 34 correct, 22 unread, and 10 incorrect of 66, with
+zero false positives in 270 blanks. The earlier printed-font result was 103/129.
+Those historical counts are retained as history, not freshly rerun baselines.
 
-1. The public corpus contains individual digits from a small handwritten-digit benchmark, not complete clock times or names. AM/PM letters are typeset in the benchmark and during model training.
-2. Reading the actual employee timesheet is still unsuccessful. Thin, connected, cursive handwritten strokes and cell edges remain difficult.
-3. Neither the lower missed-entry count nor the confidence cutoff makes the scanner safe for unattended payroll. The UI's mandatory row-by-row review and approval remain required.
-4. The model runs locally on the laptop and requires no OCR cloud account; its larger dependency set may increase eventual Windows installer size.
-5. Do **not** enter real payroll solely from machine-generated values without human verification against signed paper records.
+## What these tests establish
 
-## Suggested next engineering work
+The six composite forms use held-out UCI `load_digits()` images from indices
+1100 onward; clock strings, suffixes, names, punctuation, and layout were
+synthetically assembled. The digit recognizer was trained on indices 0–1099.
+These are real individual digit shapes, not naturally completed timesheets.
+The other ten forms use printed italic fonts. The original scan is only one
+real writer and was used for development. None of these sets is an untouched
+validation set for the new image views and decision policy. Zero observed wrong
+entries here does not establish zero errors on new handwriting.
 
-- Evaluate a modern line-oriented handwriting model such as Microsoft TrOCR (small handwritten), **on cropped boxes** and on the real form, as a separate alternative; do not ship it until a model and its dependencies can be built and tested offline.
-- Capture a consented set of 30–50 anonymized real handwritten sheets from various writers. Score each filled punch and blank independently, with separate development and untouched evaluation sets.
-- Benchmark color vs pencil, low light, angle, smudges, crossed-out entries, blank days, AM/PM and `12A` notation.
-- Run an actual Windows CI installer build and end-to-end smoke test.
+TrOCR small and RapidOCR v5 English/small/medium were compared offline.
+The shipped adapter uses only ONNX Runtime and the medium public model; it does
+not require PyTorch, Transformers, RapidOCR's download manager, or cloud OCR.
 
-## Public-source links
+## Reproduce
 
-- UCI corpus: https://archive.ics.uci.edu/dataset/80/optical%2Brecognition%2Bof%2Bhandwritten%2Bdigits
-- scikit-learn copy: https://scikit-learn.org/stable/modules/generated/sklearn.datasets.load_digits.html
-- Optional next model research: https://huggingface.co/microsoft/trocr-small-handwritten
+Install the pinned requirements and run `python scripts/fetch_ocr_model.py`.
+Then run:
+
+```bash
+python -m pytest -q
+python main.py --self-test
+python experiments/evaluate_pipeline.py --manifest test_samples/real_digit_benchmark/ground_truth.json --output composite-evaluation.json
+python experiments/evaluate_pipeline.py --manifest test_samples/ground_truth.json --output font-evaluation.json
+```
+
+The evaluation commands require Linux/libseccomp and deny outbound networking
+before opening inputs. The saved aggregate and mismatch reports for public
+fixtures are `test_samples/real_digit_benchmark/aligned_line_evaluation.json`
+and `test_samples/aligned_line_evaluation.json`.
+
+Fresh local checks: 63 tests passed, three GUI tests skipped because this Linux
+session has no display; the real-model installation/export self-test passed
+under the offline process guard. The Windows build and installer must be
+verified independently. See `BUILD_STATUS.md`.
+
+## Release state
+
+The supervised reader is materially improved. General handwriting reliability
+remains incomplete, and all 14 days require visual review and approval before
+export. A larger set of independently transcribed natural handwriting from
+multiple writers is still needed before claiming broad recognition accuracy.

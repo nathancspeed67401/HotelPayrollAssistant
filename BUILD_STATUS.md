@@ -1,27 +1,24 @@
-# Build status — October 28, 2026
+# Build status — October 30, 2026
 
-Windows build provider: CircleCI. GitHub Actions is intentionally not included.
+The previous PDF-test fix was verified by CircleCI Windows job 5 on commit
+`4c9fe5c11b10b527827061efbdbd0b4dafb29381` and merged to main as
+`3f55ec2f7305b7bfa9391b6edcf17b01df8454be`. That success predates the new
+whole-entry recognition engine and does not verify this changed installer.
 
-The source was recovered from the saved v0.3 research ZIP after workspace cleanup.
-The correction autosave, approval invalidation, strict fourteen-row review checks,
-split-shift overlap detection and same-batch duplicate filtering were restored.
-The bundled SVC model was trained with scikit-learn 1.8.0; that version is pinned.
+Current local verification: 63 tests passed, three GUI tests skipped because
+this Linux session has no display. The application self-test passed under an
+outbound-network deny filter, exercising the actual pinned ONNX model, digit
+model, Tesseract, payroll math, and Excel export. A Python 3.12 Windows x64 wheel
+for the pinned ONNX Runtime 1.31.1 dependency was also confirmed available.
 
-Current local verification: 39 tests passed, 3 desktop tests skipped because this
-Linux session has no display. The application dependency/export self-test passed.
-CircleCI runs those desktop tests on Windows, creates an Inno Setup installer,
-silently installs it, exercises the installed OCR/model/calculation/export path,
-and opens and closes the installed GUI. Verification artifacts record the commit,
-dependency versions and installer SHA-256.
+The Windows workflow now downloads and verifies the public handwriting model
+before tests, collects ONNX Runtime in PyInstaller, bundles model attribution
+and licensing, and executes the real ONNX graph in the installed self-test.
+It also silently installs the Inno Setup build and opens/closes the installed
+GUI. Artifacts record the source SHA, dependency versions, installer hash, and
+test results.
 
-The CircleCI project must be connected to this repository and its workflow must
-finish successfully before an installer can be described as tested. No successful
-Windows build has been verified yet.
-
-Release remains blocked by handwriting accuracy. The shipped recognizer is the
-experimental v0.3 model. Its historical composite benchmark was 34/66 exact time
-entries; the saved report documents that the original employee form yielded no
-usable punches. Later TrOCR/RapidOCR experiments were not saved in the recovery
-ZIP and are not part of this build. Every day must still be reviewed manually.
-
-Do not distribute this engineering build as a completed payroll release.
+A fresh Windows result for this changed tree is pending. The handwriting
+engineering build remains for supervised testing. Its measured development
+results are in `HANDWRITING_BENCHMARK_REPORT.md`; it still misses five of sixteen
+unambiguous punches on the one original handwritten scan.

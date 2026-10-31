@@ -19,6 +19,11 @@ jobs:
             & $python -m pip install -r requirements.txt pyinstaller pytest
             if ($LASTEXITCODE -ne 0) { throw 'Python dependency installation failed' }
       - run:
+          name: Fetch and verify pinned handwriting model
+          command: |
+            & 'C:\Python312\python.exe' scripts\fetch_ocr_model.py
+            if ($LASTEXITCODE -ne 0) { throw 'Handwriting model download or integrity check failed' }
+      - run:
           name: Execute automated tests
           command: |
             New-Item -ItemType Directory -Force test-results | Out-Null
@@ -27,7 +32,7 @@ jobs:
       - run:
           name: Bundle application with OCR
           command: |
-            & 'C:\Python312\Scripts\pyinstaller.exe' --noconfirm --clean --onedir --windowed --collect-all sklearn --hidden-import sklearn.svm._classes --name 'Hotel Payroll Assistant' --add-data 'app/assets;app/assets' main.py
+            & 'C:\Python312\Scripts\pyinstaller.exe' --noconfirm --clean --onedir --windowed --collect-all sklearn --collect-all onnxruntime --hidden-import sklearn.svm._classes --name 'Hotel Payroll Assistant' --add-data 'app/assets;app/assets' main.py
             if ($LASTEXITCODE -ne 0) { throw 'PyInstaller failed' }
             $internal = (Resolve-Path 'dist\Hotel Payroll Assistant\_internal').Path
             $ocrSource = 'C:\Program Files\Tesseract-OCR'

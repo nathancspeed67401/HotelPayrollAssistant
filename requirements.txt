@@ -6,3 +6,4 @@ numpy>=1.26,<3
 opencv-python-headless>=4.9,<5
 scikit-learn==1.8.0
 joblib>=1.4,<2
+onnxruntime==1.31.1

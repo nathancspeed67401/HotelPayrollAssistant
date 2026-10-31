@@ -17,6 +17,10 @@ def self_test() -> int:
     from app.handwriting import _model, recognize_time
     assert len(_model().classes_) >= 12
     assert recognize_time(Image.new('RGB',(100,30),'white'))[0] == ''
+    # Exercise the real bundled ONNX graph and dictionary, without networking.
+    from app.line_ocr import get_recognizer
+    readings = get_recognizer().recognize([Image.new('RGB', (120, 35), 'white')])
+    assert len(readings) == 1 and len(readings[0]) == 4
     with tempfile.TemporaryDirectory(prefix='hotel-payroll-test-') as location:
         dest = Path(location)
         img = Image.new('RGB', (380, 95), 'white')

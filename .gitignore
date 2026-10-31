@@ -9,3 +9,5 @@ installer/output/
 test-results/
 current_session.json
 scans/
+app/assets/*.onnx
+app/assets/*.part

@@ -110,10 +110,24 @@ def row_rect_original(image: Image.Image, row: int) -> tuple[int, int, int, int]
             round(top + (y2 + 5) * (bottom-top) / PAGE_H))
 
 
+def _has_ink(cell: Image.Image) -> bool:
+    """Detect faint pencil/pen by local contrast instead of absolute RGB darkness."""
+    gray = np.asarray(cell.convert('L'))
+    if min(gray.shape) < 8:
+        return True
+    background = cv2.GaussianBlur(gray, (21, 21), 0)
+    inner = gray[:, 3:-3]
+    contrast = background[:, 3:-3].astype('int16') - inner.astype('int16')
+    mask = np.uint8((contrast > 13) & (inner < 230)) * 255
+    _, _, stats, _ = cv2.connectedComponentsWithStats(mask)
+    connected = int(np.count_nonzero(stats[1:, cv2.CC_STAT_AREA] >= 3))
+    return int(np.count_nonzero(mask)) >= 40 and connected >= 2
+
+
 def _time_candidate(cell: Image.Image) -> str:
     """A proposed transcription, *not* automatically a clock punch."""
-    from .ocr import _cleanup_time, _ocr_cell, _likely_blank
-    if _likely_blank(cell):
+    from .ocr import _cleanup_time, _ocr_cell
+    if not _has_ink(cell):
         return ''
     primary = _cleanup_time(_ocr_cell(cell, '0123456789:APMapm'))
     if re.fullmatch(r'(?:\d{1,2}:\d{2}|\d{3,4})(?:[AP])?', primary):
@@ -131,7 +145,7 @@ def _time_candidate(cell: Image.Image) -> str:
 def scan_this_form(sheet, image: Image.Image) -> None:
     """Map the real paper's two time columns into in1/out1; require review."""
     from .core import DISPLAY, normalize_time
-    from .ocr import _ocr_cell, _likely_blank
+    from .ocr import _ocr_cell
     page = normalized_page(image)
     sheet.form_type = FORM_ID
     name = _ocr_cell(page.crop(NAME), 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz')
@@ -144,7 +158,7 @@ def scan_this_form(sheet, image: Image.Image) -> None:
         day = sheet.days[i]
         for field in ('in1', 'out1'):
             cell = field_crop(page, i, field, transform)
-            if _likely_blank(cell):
+            if not _has_ink(cell):
                 day.recognized[field] = ''
                 continue
             suggestion = _time_candidate(cell)

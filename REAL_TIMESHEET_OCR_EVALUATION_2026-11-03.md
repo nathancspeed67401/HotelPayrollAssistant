@@ -8,14 +8,14 @@
 - No identifiable employee photograph, employee name, signature, or payroll details were copied into this repository.
 
 ## Results of the layout development exercise
-- **19/19 cleaned images were classified as the new single-pair form** in a local form-detection pass. This is a test of *layout detection*, **not handwriting accuracy**.
-- The local implementation detects paper against the tabletop, normalizes orientation, and aligns day rows to horizontal printed lines before cropping the two relevant punch columns.
+- **19/19 cleaned images and 19/19 originals were classified as the new single-pair form** after handling upside-down EXIF metadata, in local form-detection passes. This is a test of *layout detection*, **not handwriting accuracy**.
+- The local implementation detects paper against the tabletop, corrects upside-down EXIF orientation, and aligns day rows to horizontal printed lines before cropping the two relevant punch columns. Original photographs with incorrect camera rotation are archived upright for visual review.
 - A local-contrast ink check distinguished 16 visibly written punch cells from 12 blank punch cells on the first sample. This is a **one-image spot check only** and does not establish sensitivity/specificity across employees or other handwriting.
 - Handwriting transcription is **still poor**: a manual review of that first real image identified 16 filled punch cells, while Tesseract did not produce an exact trustworthy clock-time transcription of them in the local prototype. These samples are much more difficult than the old synthetic font-based or isolated-digit tests.
 - A partial batch OCR attempt processed six images before the local execution limit; it is **not** a complete 19-image OCR accuracy benchmark. No overall handwriting accuracy is claimed.
 
 ## Implemented changes (experimental)
-- Dispatch by actual paper layout instead of trying the old 4-punch grid on every page.
+- Dispatch by actual paper layout instead of trying the old 4-punch grid on every page; match rotated camera originals as well as cleaned captures.
 - Preserve the legacy 4-punch parser for the other timesheet style.
 - Align printed horizontal rules and crop 14 real day rows from the 2 punch columns.
 - Use contrast-relative ink detection to flag faint pencil and pen strokes.

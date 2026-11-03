@@ -165,7 +165,7 @@ def scan_this_form(sheet, image: Image.Image) -> None:
             day.recognized[field] = suggestion
             canon, error = normalize_time(suggestion)
             explicit_24h = bool(re.fullmatch(r'(?:1[3-9]|2[0-3]):[0-5]\d', suggestion))
-            explicit_ampm = bool(re.search(r'[AP]$', suggestion))
+            explicit_ampm = bool(re.fullmatch(r'\d{1,2}:[0-5]\d[AP]', suggestion))
             if canon and not error and (explicit_ampm or explicit_24h):
                 setattr(day, field, suggestion)
             else:

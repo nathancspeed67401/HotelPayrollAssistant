@@ -54,14 +54,19 @@ def normalized_page(image: Image.Image) -> Image.Image:
     return image.crop(_paper_box(image)).resize((PAGE_W, PAGE_H), Image.Resampling.LANCZOS)
 
 
-def is_this_form(image: Image.Image) -> bool:
-    """Differentiate single-pair housekeeping/front desk form from old form."""
-    page = normalized_page(image)
+def _header_matches(page: Image.Image) -> bool:
+    """Recognize form labels, independent of whether EXIF got orientation right."""
     top = ImageOps.autocontrast(ImageOps.grayscale(page.crop((70, 100, 940, 360))), cutoff=1)
     flat = re.sub(r'[^A-Z ]', ' ', pytesseract.image_to_string(top, config='--psm 6').upper())
     return (('SALINA SOUTH' in flat or 'SCHILLING RD' in flat or
              'ROOMS' in flat or 'ALOTTED' in flat) and
             ('TIME' in flat or 'PAY PERIOD' in flat or 'MANAGER' in flat))
+
+
+def is_this_form(image: Image.Image) -> bool:
+    """Find real form even when camera EXIF has left the photograph upside-down."""
+    page = normalized_page(image)
+    return _header_matches(page) or _header_matches(page.rotate(180))
 
 
 def _row_transform(page: Image.Image) -> tuple[float, int]:
@@ -148,6 +153,10 @@ def scan_this_form(sheet, image: Image.Image) -> None:
     from .ocr import _ocr_cell
     page = normalized_page(image)
     sheet.form_type = FORM_ID
+    sheet.rotate_180_for_archive = False
+    if not _header_matches(page) and _header_matches(page.rotate(180)):
+        page = page.rotate(180)
+        sheet.rotate_180_for_archive = True
     name = _ocr_cell(page.crop(NAME), 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz')
     name = re.sub(r'(?<=[a-z])(?=[A-Z])', ' ', name).strip()
     sheet.employee = name if len(name) >= 4 and len(name.split()) >= 2 else ''

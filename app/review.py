@@ -1,6 +1,6 @@
 """Safety checks independent of desktop UI; payroll requires visual review."""
 from pathlib import Path
-from PIL import Image
+from PIL import Image, ImageOps
 from .core import Sheet, validate_sheet, fully_reviewed
 
 
@@ -10,7 +10,10 @@ def archive_page(sheet: Sheet, image: Image.Image, directory: Path) -> Sheet:
     destination = directory / (sheet.source_hash + '.png')
     if not destination.exists():
         tmp = destination.with_suffix('.tmp.png')
-        image.convert('RGB').save(tmp, 'PNG', optimize=True)
+        archival = ImageOps.exif_transpose(image).convert('RGB')
+        if sheet.rotate_180_for_archive:
+            archival = archival.rotate(180, expand=True)
+        archival.save(tmp, 'PNG', optimize=True)
         tmp.replace(destination)
     sheet.source = str(destination) + '#page1'
     return sheet

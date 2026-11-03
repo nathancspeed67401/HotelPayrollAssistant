@@ -27,8 +27,9 @@ def test_paper_detection_handles_wood_background():
 def test_faint_pencil_detected_but_blank_ignored():
     empty = Image.new("RGB", (125, 40), (212, 212, 212))
     marked = empty.copy()
-    ImageDraw.Draw(marked).text((20, 10), "6:45", fill=(75, 75, 75),
-                                stroke_width=1)
+    draw = ImageDraw.Draw(marked)
+    for x in (20, 40, 60, 80):
+        draw.line((x, 10, x+3, 30), fill=(75, 75, 75), width=3)
     assert not photo_form._has_ink(empty)
     assert photo_form._has_ink(marked)
 

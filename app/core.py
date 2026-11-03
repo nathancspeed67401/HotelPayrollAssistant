@@ -36,6 +36,7 @@ class Sheet:
     reviewed_days: list[bool] = field(default_factory=lambda: [False] * 14)
     notes: str = ""
     scan_warnings: list[str] = field(default_factory=list)
+    form_type: str = "legacy_two_pair"
     # Image bytes and file paths are intentionally NOT stored in the final payroll export.
 
     def to_dict(self) -> dict:
@@ -47,7 +48,8 @@ class Sheet:
                    employee=item.get("employee", ""), period_start=item.get("period_start", ""),
                    days=[ShiftDay(**v) for v in item.get("days", [])],
                    approved=item.get("approved", False), reviewed_days=item.get("reviewed_days", [False]*14), notes=item.get("notes", ""),
-                   scan_warnings=item.get("scan_warnings", []))
+                   scan_warnings=item.get("scan_warnings", []),
+                   form_type=item.get("form_type", "legacy_two_pair"))
 
 
 def normalize_time(raw: str) -> tuple[str, str]:

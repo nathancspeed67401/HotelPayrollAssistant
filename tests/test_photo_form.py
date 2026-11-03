@@ -61,3 +61,34 @@ def test_missing_minutes_do_not_turn_into_valid_hour(monkeypatch):
     photo_form.scan_this_form(sheet, page)
     assert sheet.days[0].recognized["in1"] == "6A"
     assert sheet.days[0].in1 == ""
+
+
+def test_upside_down_form_rotates_for_ocr_and_archive(monkeypatch, tmp_path):
+    from app.review import archive_page
+    # Camera orientation can be wrong even after EXIF transpose. Distinguish
+    # the page by an artificial red orientation pixel, never private photos.
+    page = Image.new("RGB", (1000, 1470), "white")
+    page.putpixel((999, 1469), (200, 0, 0))
+    monkeypatch.setattr(photo_form, "normalized_page", lambda image: page.copy())
+    monkeypatch.setattr(photo_form, "_header_matches",
+                        lambda im: im.getpixel((0, 0))[0] == 200)
+    monkeypatch.setattr(photo_form, "_row_transform", lambda image: (1.0, 0))
+    monkeypatch.setattr(photo_form, "_has_ink", lambda cell: False)
+    monkeypatch.setattr("app.ocr._ocr_cell", lambda image, characters: "")
+    assert photo_form.is_this_form(page)
+    sheet = Sheet("photo.jpg", "upside-down-fixture")
+    photo_form.scan_this_form(sheet, page)
+    assert sheet.rotate_180_for_archive
+    assert sheet.form_type == photo_form.FORM_ID
+    archive_page(sheet, page, tmp_path)
+    with Image.open(sheet.source.split("#")[0]) as archived:
+        assert archived.getpixel((0, 0)) == (200, 0, 0)
+
+
+def test_orientation_flag_persists_through_session():
+    original = Sheet("photo.jpg", "test-hash")
+    original.form_type = photo_form.FORM_ID
+    original.rotate_180_for_archive = True
+    loaded = Sheet.from_dict(original.to_dict())
+    assert loaded.rotate_180_for_archive is True
+    assert loaded.form_type == photo_form.FORM_ID

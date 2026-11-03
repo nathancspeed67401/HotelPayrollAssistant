@@ -10,6 +10,7 @@ from tkinter import filedialog, messagebox, ttk
 from PIL import Image, ImageTk, ImageDraw, ImageOps
 from .core import Sheet, DISPLAY, TIME_FIELDS, calculate_day, display_time, load_session, save_session, summarize, validate_sheet, fully_reviewed
 from .ocr import load_pages, scan_page, REF_W, REF_H, ROW_Y, COL_X
+from .photo_form import FORM_ID, row_rect_original
 from .report import export_excel
 from .review import archive_page, scan_available, review_issues
 
@@ -373,18 +374,30 @@ class PayrollApp(tk.Tk):
             chosen = self.tree.selection()
             if chosen:
                 i = int(chosen[0])
-                start, end = ROW_Y[i]
                 draw = ImageDraw.Draw(base)
-                # Printed day row, overlaid for easy visual comparison.
-                scale_x = base.width / REF_W
-                scale_y = base.height / REF_H
-                draw.rectangle((int(207*scale_x), int(start*scale_y), int(743*scale_x), int(end*scale_y)), outline='#FF5533', width=max(3, int(base.width/250)))
+                if self.active_idx is not None and self.sheets[self.active_idx].form_type == FORM_ID:
+                    rect = row_rect_original(base, i)
+                else:
+                    start, end = ROW_Y[i]
+                    scale_x = base.width / REF_W
+                    scale_y = base.height / REF_H
+                    rect = (int(207*scale_x), int(start*scale_y),
+                            int(743*scale_x), int(end*scale_y))
+                draw.rectangle(rect, outline='#FF5533', width=max(3, int(base.width/250)))
             base.thumbnail((w,h), Image.Resampling.LANCZOS)
             self.preview_photo = ImageTk.PhotoImage(base)
             self.img_label.config(image=self.preview_photo, text='')
             if chosen:
-                i=int(chosen[0]); y1,y2=ROW_Y[i]
-                snippet=self.current_image.crop((int(180*self.current_image.width/REF_W), int((y1-4)*self.current_image.height/REF_H),int(762*self.current_image.width/REF_W), int((y2+4)*self.current_image.height/REF_H)))
+                i=int(chosen[0])
+                if self.active_idx is not None and self.sheets[self.active_idx].form_type == FORM_ID:
+                    box = row_rect_original(self.current_image, i)
+                    snippet = self.current_image.crop(box)
+                else:
+                    y1, y2 = ROW_Y[i]
+                    snippet = self.current_image.crop((int(180*self.current_image.width/REF_W),
+                        int((y1-4)*self.current_image.height/REF_H),
+                        int(762*self.current_image.width/REF_W),
+                        int((y2+4)*self.current_image.height/REF_H)))
                 snippet.thumbnail((w,105), Image.Resampling.LANCZOS)
                 # Keep separate reference alive.
                 self._row_image=ImageTk.PhotoImage(snippet)
@@ -399,17 +412,20 @@ class PayrollApp(tk.Tk):
             messagebox.showinfo('Choose a row', 'Select a day after importing a timesheet.')
             return
         i = int(selected[0])
-        top, bottom = ROW_Y[i]
-        width, height = self.current_image.size
-        box = (int(175*width/REF_W), int((top-6)*height/REF_H),
-               int(758*width/REF_W), int((bottom+6)*height/REF_H))
+        if self.active_idx is not None and self.sheets[self.active_idx].form_type == FORM_ID:
+            box = row_rect_original(self.current_image, i)
+        else:
+            top, bottom = ROW_Y[i]
+            width, height = self.current_image.size
+            box = (int(175*width/REF_W), int((top-6)*height/REF_H),
+                   int(758*width/REF_W), int((bottom+6)*height/REF_H))
         strip = self.current_image.crop(box)
         strip = strip.resize((max(950,strip.width*2), max(90,strip.height*2)), Image.Resampling.LANCZOS)
         popup = tk.Toplevel(self)
         popup.title(f'Enlarged handwriting — Week {i//7+1}, {DISPLAY[i%7]}')
         popup.resizable(True, True)
         popup.geometry('1050x250')
-        ttk.Label(popup, text=f'Week {i//7+1} — {DISPLAY[i%7]} | Compare the photo with the four time boxes', padding=12).pack(anchor='w')
+        ttk.Label(popup, text=f'Week {i//7+1} — {DISPLAY[i%7]} | Compare the clock times with the source photo', padding=12).pack(anchor='w')
         photo = ImageTk.PhotoImage(strip)
         label = ttk.Label(popup, image=photo)
         label.image = photo

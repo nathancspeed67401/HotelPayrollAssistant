@@ -173,7 +173,7 @@ def scan_this_form(sheet, image: Image.Image) -> None:
     sheet.rotate_180_for_archive = rotation == 180
     grid = find_photo_grid(page)
     warnings = ["OCR suggestions require checking every punch against the original photograph.",
-                "Missing AM/PM must be confirmed from the source; no half-day is inferred."]
+                "Use a suggested time only after comparing it with the photograph."]
     if grid is None:
         warnings.append('Printed rows could not be registered. No times were populated. Read the full photograph.')
         for day in sheet.days:
@@ -218,12 +218,12 @@ def scan_this_form(sheet, image: Image.Image) -> None:
         day = sheet.days[row]
         day.recognized[field] = decision.raw
         day.observations[field] = {
-            'status':decision.status,'raw':decision.raw,
+            'status':decision.status,'raw':decision.raw,'proposal':decision.value,
             'candidates':[{'text':r.text,'confidence':r.confidence,'minimum':r.minimum,'source':r.source}
                           for r in candidates],
             'confidence_is_calibrated':False}
         if decision.value:
-            setattr(day,field,decision.value)
+            warnings.append(f'Week {row//7+1} {DISPLAY[row%7]}, {field}: compare the suggested time with the photograph')
         else:
             warnings.append(f"Week {row//7+1} {DISPLAY[row%7]}, {field}: writing needs review "
                             f"— {decision.status} (read: {decision.raw[:60]})")

@@ -69,6 +69,7 @@ def run_workflow_smoke():
                 assert sheet.form_type == 'comfort_suites_single_pair'
                 assert len(sheet.review_boxes) == 14, 'Printed form registration failed'
                 assert sheet.days[0].recognized.get('in1'), 'No real OCR transcription was produced'
+                assert not sheet.days[0].in1 and not sheet.days[0].out1, 'OCR filled punch fields'
                 assert not sheet.approved
                 app.show_sheet(index)
                 app.name_var.set(f'Installation Test {index + 1}')

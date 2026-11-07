@@ -56,7 +56,8 @@ def main():
                 best=max(candidates,key=lambda c:c.get('confidence',0)) if candidates else {}
                 predictions.append({'sheet':sid,'row':row,'field':field,
                     'raw':best.get('text',day.recognized.get(field,'')),
-                    'value':getattr(day,field),'status':obs.get('status','unknown'),
+                    'value':getattr(day,field),'suggestion':obs.get('proposal',getattr(day,field)),
+                    'status':obs.get('status','unknown'),
                     'confidence':best.get('confidence')})
         print('Evaluated',sid,flush=True)
     if not registration:raise ValueError('No sheets selected')

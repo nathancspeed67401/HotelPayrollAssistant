@@ -9,7 +9,7 @@ from pathlib import Path
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from PIL import Image, ImageTk, ImageDraw, ImageOps
-from .core import Sheet, DISPLAY, TIME_FIELDS, calculate_day, display_time, load_session, save_session, summarize, validate_sheet, fully_reviewed, row_fingerprint, valid_period
+from .core import Sheet, DISPLAY, TIME_FIELDS, calculate_day, display_time, load_session, normalize_time, save_session, summarize, validate_sheet, fully_reviewed, row_fingerprint, valid_period
 from .ocr import load_pages, scan_page, REF_W, REF_H, ROW_Y, COL_X
 from .photo_form import FORM_ID, row_rect_original
 from .report import export_excel
@@ -31,7 +31,7 @@ class PayrollApp(tk.Tk):
             messagebox.showerror('Payroll is already open',str(exc))
             self.destroy()
             raise
-        self.title('Hotel Payroll Assistant')
+        self.title('Hotel Payroll Assistant — Engineering Candidate')
         width=min(1240,max(900,self.winfo_screenwidth()-40))
         height=min(800,max(600,self.winfo_screenheight()-80))
         self.geometry(f'{width}x{height}')
@@ -134,6 +134,7 @@ class PayrollApp(tk.Tk):
         self.punch_entries = []
         self.punch_labels = []
         self.blank_checks = []
+        self.suggestion_buttons = []
         for c, label in enumerate(['Time In', 'Time Out', 'Second In', 'Second Out']):
             heading=ttk.Label(edit,text=label,style='Body.TLabel')
             heading.grid(row=0,column=c,padx=4,sticky='w')
@@ -144,6 +145,10 @@ class PayrollApp(tk.Tk):
             self.punch_entries.append(ent)
             check=ttk.Checkbutton(edit,text='Blank / crossed out',variable=self.blank_vars[c],command=self._blank_changed)
             check.grid(row=2,column=c,sticky='w');self.blank_checks.append(check)
+            use = ttk.Button(edit, command=lambda column=c: self._use_suggestion(column))
+            use.grid(row=3, column=c, padx=4, pady=(3, 0), sticky='w')
+            use.grid_remove()
+            self.suggestion_buttons.append(use)
             edit.columnconfigure(c, weight=1)
         self.btn_save_day=ttk.Button(edit,text='✓ Checked: Save & Next',command=self.save_day)
         self.btn_save_day.grid(row=1,column=4,padx=(10,0),sticky='ew')
@@ -433,6 +438,7 @@ class PayrollApp(tk.Tk):
             self.tree.item(str(row_index), values=current)
         self._set_totals()
         self.refresh_list()
+        self._show_suggestions(day)
         self._save()
 
     def select_day(self, _event=None):
@@ -449,11 +455,32 @@ class PayrollApp(tk.Tk):
         finally:
             self._loading_punches = False
         self._editing_day = (self.active_idx, int(sel[0]))
+        self._show_suggestions(d)
         h, errors = calculate_day(d)
         warnings = [w for w in self.sheets[self.active_idx].scan_warnings
                     if w.startswith(f'Week {int(sel[0])//7+1} {DISPLAY[int(sel[0])%7]},')]
         self.note_var.set(('⚠ ' + '; '.join(errors or warnings)) if (errors or warnings) else 'Read the handwritten row on the right. Correct any OCR mistakes, then click Checked: Save & Next. Blank days may remain blank.')
         self.update_preview()
+
+    def _show_suggestions(self, day):
+        for field, button in zip(TIME_FIELDS, self.suggestion_buttons):
+            proposal = day.observations.get(field, {}).get('proposal')
+            if self.current_image is not None and proposal and not getattr(day, field):
+                button.configure(text=f'Use {proposal}')
+                button.grid()
+            else:
+                button.grid_remove()
+
+    def _use_suggestion(self, column):
+        if self.current_image is None or self._editing_day is None:
+            return
+        sheet, row = self._editing_day
+        day = self.sheets[sheet].days[row]
+        field = TIME_FIELDS[column]
+        proposal = day.observations.get(field, {}).get('proposal')
+        if not getattr(day, field) and proposal and normalize_time(proposal)[0]:
+            self.punch_vars[column].set(proposal)
+            self.punch_entries[column].focus_set()
 
     def _blank_changed(self):
         if self._editing_day is None:return
@@ -628,6 +655,8 @@ class PayrollApp(tk.Tk):
         self.name_var.set(''); self.date_var.set('')
         self.img_label.config(image='',text='Import a photo to see it here')
         self.row_preview.config(image='',text='Selected row will appear here')
+        for button in self.suggestion_buttons:
+            button.grid_remove()
         self.totals.set('Week 1: —    Week 2: —    Total: —')
         self._save(); self.status.set('New payroll started. Add photos to begin.')
 

@@ -26,7 +26,9 @@ def evaluate_cells(labels, predictions, expected_count):
         'wrong_raw_clock_readings','unreadable_transcriptions','false_blank_detections',
         'correct_populated_times','wrong_populated_times','false_populated_blanks',
         'raw_clock_on_blank','proposals_on_ambiguous','eligible_written',
-        'correct_clean_blanks','crossed_out','crossed_out_flagged_for_review')});bins={};verified=True;holdout=True
+        'correct_clean_blanks','crossed_out','crossed_out_flagged_for_review',
+        'correct_suggestions','wrong_suggestions','suggestions_on_blanks',
+        'automatic_punches_on_ambiguous')});bins={};verified=True;holdout=True
     for label in labels:
         key=(label['sheet'],label['row'],label['field'])
         if key in seen:raise ValueError('Duplicate ground-truth cell')
@@ -37,11 +39,13 @@ def evaluate_cells(labels, predictions, expected_count):
         holdout &= label.get('split') == 'holdout'
         predicted=by_key.get(key,{})
         raw=predicted.get('raw','');value=predicted.get('value','')
+        suggestion = predicted.get('suggestion', value)
         literal=label.get('literal');status=label['status']
         detected = predicted.get('status')
         if status in ('ambiguous','unreadable','correction'):
             counts['ambiguous']+=1
-            if value:counts['proposals_on_ambiguous']+=1
+            if suggestion:counts['proposals_on_ambiguous']+=1
+            if value:counts['automatic_punches_on_ambiguous']+=1
             continue
         if status in ('blank','struck-out-blank'):
             counts['blank']+=1
@@ -52,6 +56,7 @@ def evaluate_cells(labels, predictions, expected_count):
             elif detected == 'blank' and not value:
                 counts['correct_clean_blanks'] += 1
             if value:counts['false_populated_blanks']+=1
+            if suggestion:counts['suggestions_on_blanks']+=1
             if clock_key(raw):counts['raw_clock_on_blank']+=1
             continue
         expected_clock, has_minutes = _literal_key(literal)
@@ -74,6 +79,11 @@ def evaluate_cells(labels, predictions, expected_count):
                 counts['wrong_populated_times']+=1
             else:
                 counts['correct_populated_times']+=1
+        if suggestion:
+            if expected and normalize_time(suggestion)[0] == expected:
+                counts['correct_suggestions'] += 1
+            else:
+                counts['wrong_suggestions'] += 1
         confidence=predicted.get('confidence')
         if isinstance(confidence,(float,int)) and 0 <= confidence <= 1:
             bucket=min(9,int(confidence*10))
@@ -84,15 +94,20 @@ def evaluate_cells(labels, predictions, expected_count):
     payroll_accuracy=counts['correct_populated_times']/counts['written'] if counts['written'] else None
     eligible_accuracy = (counts['correct_populated_times'] / counts['eligible_written']
                          if counts['eligible_written'] else None)
-    counts['written_without_correct_suggestion'] = counts['written'] - counts['correct_populated_times']
+    suggestion_accuracy = (counts['correct_suggestions'] / counts['eligible_written']
+                           if counts['eligible_written'] else None)
+    counts['written_without_correct_suggestion'] = counts['written'] - counts['correct_suggestions']
     complete=len(seen)==expected_count and expected_count>0
     return {'cells':len(seen),'expected_cells':expected_count,'counts':dict(counts),
             'exact_transcription_accuracy':accuracy,'independently_verified':bool(verified and complete),
             'exact_populated_punch_accuracy':payroll_accuracy,
             'exact_eligible_punch_accuracy':eligible_accuracy,
+            'exact_eligible_suggestion_accuracy':suggestion_accuracy,
             'complete':complete,'holdout':bool(holdout and complete),
             'confidence_bins':{str(k):dict(v) for k,v in bins.items()},
             'target_met':bool(complete and verified and holdout and accuracy is not None and accuracy>=.98
-                              and eligible_accuracy is not None and eligible_accuracy>=.98
+                              and suggestion_accuracy is not None and suggestion_accuracy>=.98
                               and not counts['wrong_populated_times'] and not counts['false_populated_blanks']
+                              and not counts['automatic_punches_on_ambiguous']
+                              and not counts['wrong_suggestions'] and not counts['suggestions_on_blanks']
                               and not counts['proposals_on_ambiguous'])}

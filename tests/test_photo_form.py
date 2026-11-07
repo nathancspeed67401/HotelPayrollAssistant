@@ -52,6 +52,25 @@ def test_missing_minutes_do_not_turn_into_valid_hour():
     assert choose_clock([Reading('6A',.99,.98,'raw')]).value == ''
 
 
+def test_strong_real_form_ocr_only_offers_a_suggestion(monkeypatch):
+    from app.line_ocr import Reading
+    from app.review import mark_row_reviewed
+    from app.smoke import single_pair_fixture
+    from types import SimpleNamespace
+    import pytest
+
+    page, _ = single_pair_fixture()
+    engine = SimpleNamespace(recognize=lambda cells, views: [
+        [Reading('23:00', .99, .98, 'raw')] for _ in cells])
+    monkeypatch.setattr('app.line_ocr.get_recognizer', lambda: engine)
+    sheet = Sheet('fixture.png', 'fixture')
+    photo_form.scan_this_form(sheet, page)
+    assert sheet.days[0].observations['in1']['proposal'] == '11:00P'
+    assert not sheet.days[0].in1 and not sheet.days[0].out1
+    with pytest.raises(ValueError, match='Writing needs a time'):
+        mark_row_reviewed(sheet, 0)
+
+
 def test_upside_down_form_rotates_for_ocr_and_archive(monkeypatch, tmp_path):
     from app.review import archive_page
     # Camera orientation can be wrong even after EXIF transpose. Distinguish

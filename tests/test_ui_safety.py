@@ -121,3 +121,17 @@ def test_single_pair_form_shows_only_its_two_clock_fields(ui):
     sheet.form_type='comfort_suites_single_pair';app.show_sheet(0);app.update()
     assert not app.punch_entries[2].winfo_viewable()
     assert app.tree['displaycolumns']==('day','in1','out1','hours','review')
+
+
+def test_ocr_hint_requires_explicit_acceptance_and_row_review(ui):
+    app, sheet, _ = ui
+    sheet.form_type = 'comfort_suites_single_pair'
+    sheet.days[0] = ShiftDay(observations={'in1': {'status': 'suggestion', 'proposal': '8:00A'}})
+    sheet.reviewed_days[0] = False
+    sheet.approved = False
+    app.show_sheet(0)
+    assert app.punch_vars[0].get() == ''
+    assert app.suggestion_buttons[0]['text'] == 'Use 8:00A'
+    app.suggestion_buttons[0].invoke()
+    assert app.punch_vars[0].get() == '8:00A'
+    assert not sheet.reviewed_days[0] and not sheet.approved

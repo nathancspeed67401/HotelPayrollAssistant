@@ -110,6 +110,12 @@ perspective diagnostics. Score each variant independently with
 `experiments/evaluate_real_forms.py`. No payroll images or per-cell results
 belong in Git or CI artifacts.
 
+On one labeled development sheet, the original and each of the four generated
+variants (180° rotation, dimmed, JPEG quality 45, and a small perspective warp)
+registered and transcribed **5 of 8** readable punches exactly. Each produced
+five correct populated suggestions and no wrong populated or filled blank cells.
+This single-sheet diagnostic is not an estimate of robustness across writers.
+
 ## Automated verification
 
 - PR 2 baseline: **63 passed, 3 GUI tests skipped** before integration.
@@ -128,7 +134,9 @@ belong in Git or CI artifacts.
   reserves room before the scrollable table. Single-pair forms show only two
   inputs, and an inaccessible source clears the previous image from view.
 - The revised candidate passed **108/108** local tests, with no skips, on a
-  real virtual desktop. The focused archive/export and scoring checks also
+  real virtual desktop. A visual check at 1366×768 confirmed that both time
+  boxes, the selected row image, and the check-and-advance button are visible.
+  The focused archive/export and scoring checks also
   passed **27/27**. Windows verification remains separate.
 
 ## Windows installer
@@ -149,8 +157,21 @@ not accessible here, so its exact failing step is unconfirmed. The follow-up
 corrects a concrete Windows compatibility issue: flush the temporary archive
 and workbook with writable handles, as required by
 [Windows file flushing](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-flushfilebuffers).
-The next job verifies that change and the visible editor controls. No new
-installer has been retrieved or declared production-ready.
+[Windows job 25](https://circleci.com/gh/nathancspeed67401/HotelPayrollAssistant/25)
+reported **success** on exact source `21e666954f43eef2b340235f6d1bf384d0529910`.
+The configured job includes the full test suite, setup compilation, silent
+installation, real bundled OCR/export checks, installed GUI import/review/
+approval/export/restart checks, and silent uninstall. The pass was verified
+through GitHub's exact-commit status. Job 24's specific failure remains unknown.
+
+The configured setup artifact is `Windows-Setup/HotelPayrollAssistant_Setup.exe`.
+The two private artifact-list requests returned HTTP 404 from this session,
+so the binary and its checksum were not retrieved or independently verified.
+For supervised testing, use the job's **Artifacts → Windows-Setup** section.
+Run the setup on a test Windows account, keep the desktop shortcut selected,
+then open Hotel Payroll Assistant and use fictional forms. The CI executor is
+Windows Server 2022; this is not a field test on Lynnette's Windows 10/11 laptop.
+The installer remains an engineering candidate.
 
 ## Remaining release gates
 
@@ -161,11 +182,17 @@ installer has been retrieved or declared production-ready.
    development result is far below 98% and is not an independent benchmark.
 3. Broader written-vs-blank sensitivity and correction detection; model confidence
    remains uncalibrated. Further recognition tuning must retain abstention rules.
-4. Fresh Windows build/install/workflow/uninstall evidence for this exact source,
-   artifact retrieval and checksum verification, and a real manager usability
-   check. Windows CI alone does not establish Windows 10/11 field compatibility.
+4. Retrieve and checksum the setup file, test on supported Windows 10/11, and
+   complete manager usability acceptance. Job 25 closes the CI build and
+   installed-workflow gate only.
 5. Confirm the employer-defined overtime workweek and ambiguous real AM/PM
    conventions before representing overtime estimates as final wage calculations.
+   The [Department of Labor's workweek guidance](https://www.dol.gov/agencies/whd/fact-sheets/23-flsa-overtime-pay)
+   distinguishes the fixed workweek from a biweekly pay period. The paper form
+   also mentions a meal-break deduction with a front-desk exception. The app
+   currently totals elapsed punch intervals and does not apply automatic break
+   deductions or quarter-hour rounding. Confirm the hotel's actual rules and
+   which intervals are payable before using the export to pay wages.
 
 No paid service, cloud OCR, employee upload, API-key screen or subscription was
 introduced. The importer reads locally and does not download models at runtime.

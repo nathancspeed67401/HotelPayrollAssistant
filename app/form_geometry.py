@@ -32,20 +32,35 @@ class FormGrid:
             _intersection(left, top), _intersection(right, top),
             _intersection(right, bottom), _intersection(left, bottom)))
 
+    def _cell_geometry(self, row: int, column: int):
+        import numpy as np
+        quad = np.asarray(self.cell_quad(row, column), dtype='float32')
+        width = round((np.linalg.norm(quad[1]-quad[0]) + np.linalg.norm(quad[2]-quad[3]))/2)
+        height = round((np.linalg.norm(quad[3]-quad[0]) + np.linalg.norm(quad[2]-quad[1]))/2)
+        inset = max(1, round(self.image_size[0]/REF_W))
+        return quad, width, height, inset
+
+    def crop_size(self, row: int, column: int) -> tuple[int, int]:
+        _, width, height, inset = self._cell_geometry(row, column)
+        return width - 2 * inset, height - 2 * inset
+
     def crop_cell(self, image: Image.Image, row: int, column: int) -> Image.Image:
         import cv2
         import numpy as np
         if image.size != self.image_size:
             raise ValueError('Grid belongs to a different image size')
-        quad = np.asarray(self.cell_quad(row, column), dtype='float32')
-        width = round((np.linalg.norm(quad[1]-quad[0]) + np.linalg.norm(quad[2]-quad[3]))/2)
-        height = round((np.linalg.norm(quad[3]-quad[0]) + np.linalg.norm(quad[2]-quad[1]))/2)
+        quad, width, height, inset = self._cell_geometry(row, column)
+        # Keep the interpolation neighborhood while avoiding a full-page
+        # array copy for every cell of a high-resolution photo.
+        origin = np.maximum(np.floor(quad.min(axis=0)).astype(int) - 1, 0)
+        end = np.minimum(np.ceil(quad.max(axis=0)).astype(int) + 2, image.size)
+        region = image.crop((*origin, *end)).convert('RGB')
+        quad -= origin.astype('float32')
         destination = np.asarray(((0, 0), (width-1, 0), (width-1, height-1),
                                   (0, height-1)), dtype='float32')
         matrix = cv2.getPerspectiveTransform(quad, destination)
-        cell = cv2.warpPerspective(np.asarray(image.convert('RGB')), matrix,
+        cell = cv2.warpPerspective(np.asarray(region), matrix,
                                   (width, height), borderValue=(255, 255, 255))
-        inset = max(1, round(self.image_size[0]/REF_W))
         return Image.fromarray(cell).crop((inset, inset, width-inset, height-inset))
 
 

@@ -77,7 +77,6 @@ def test_upside_down_form_rotates_for_ocr_and_archive(monkeypatch, tmp_path):
     # the page by an artificial red orientation pixel, never private photos.
     page = Image.new("RGB", (1000, 1470), "white")
     page.putpixel((999, 1469), (200, 0, 0))
-    monkeypatch.setattr(photo_form, "normalized_page", lambda image: page.copy())
     monkeypatch.setattr(photo_form, "_header_matches",
                         lambda im: im.getpixel((0, 0))[0] == 200)
     monkeypatch.setattr(photo_form, "_row_transform", lambda image: (1.0, 0))
@@ -91,6 +90,33 @@ def test_upside_down_form_rotates_for_ocr_and_archive(monkeypatch, tmp_path):
     archive_page(sheet, page, tmp_path)
     with Image.open(sheet.source.split("#")[0]) as archived:
         assert archived.getpixel((0, 0)) == (200, 0, 0)
+
+
+def test_photo_recognition_uses_original_resolution_clock_cells(monkeypatch):
+    import numpy as np
+    from types import SimpleNamespace
+    from app.line_ocr import Reading
+    from app.smoke import single_pair_fixture
+
+    page, rows = single_pair_fixture()
+    photo = page.resize((2000, 2940), Image.Resampling.NEAREST)
+    y = 2 * (rows[0][0] + 23)
+    ImageDraw.Draw(photo).line((751, y, 751, y + 14), fill=(19, 62, 176))
+    received = []
+
+    def recognize(cells, views):
+        received.extend(cells)
+        return [[Reading('23:00', .99, .98, 'raw')] for _ in cells]
+
+    monkeypatch.setattr('app.line_ocr.get_recognizer', lambda: SimpleNamespace(recognize=recognize))
+    sheet = Sheet('fictional.png', 'fixture')
+    assert photo_form.scan_this_form(sheet, photo)
+    assert len(sheet.review_boxes) == 14
+    assert received[0].width > 230 and received[0].height > 85
+    pixels = np.asarray(received[0]).astype('int16')
+    assert np.count_nonzero(pixels[:, :, 2] - pixels[:, :, 0] > 70) >= 8
+    assert sheet.days[0].observations['in1']['proposal'] == '11:00P'
+    assert all(not (day.in1 or day.out1 or day.in2 or day.out2) for day in sheet.days)
 
 
 def test_orientation_flag_persists_through_session():

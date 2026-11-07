@@ -4,6 +4,7 @@ Camera alignment and reading suggestions are experimental. No AM/PM is guessed.
 Never distribute private employee timesheet photographs with the repository.
 """
 from __future__ import annotations
+from dataclasses import replace
 import re
 import cv2
 import numpy as np
@@ -47,11 +48,16 @@ def _paper_box(image: Image.Image) -> tuple[int, int, int, int]:
             min(w, round(x2 / scale)), min(h, round((y + ch) / scale)))
 
 
-def normalized_page(image: Image.Image) -> Image.Image:
+def _portrait(image: Image.Image) -> tuple[Image.Image, int]:
     image = ImageOps.exif_transpose(image).convert('RGB')
     if image.width > image.height:
-        image = image.rotate(90, expand=True)
-    return image.crop(_paper_box(image)).resize((PAGE_W, PAGE_H), Image.Resampling.LANCZOS)
+        return image.rotate(90, expand=True), 90
+    return image, 0
+
+
+def normalized_page(image: Image.Image) -> Image.Image:
+    portrait, _ = _portrait(image)
+    return portrait.crop(_paper_box(portrait)).resize((PAGE_W, PAGE_H), Image.Resampling.LANCZOS)
 
 
 def _header_matches(page: Image.Image) -> bool:
@@ -158,12 +164,10 @@ def scan_this_form(sheet, image: Image.Image) -> bool:
     from .ocr import _ocr_cell
     from .line_ocr import PHOTO_VIEWS, LineOCRError, choose_clock, get_recognizer
     from .photo_grid import find_photo_grid
-    upright = ImageOps.exif_transpose(image).convert('RGB')
-    rotation = 0
-    if upright.width > upright.height:
-        upright = upright.rotate(90,expand=True)
-        rotation = 90
-    page = normalized_page(upright)
+    upright, rotation = _portrait(image)
+    left, paper_top, right, paper_bottom = _paper_box(upright)
+    paper = upright.crop((left, paper_top, right, paper_bottom))
+    page = paper.resize((PAGE_W, PAGE_H), Image.Resampling.LANCZOS)
     flipped_page = None if _header_matches(page) else page.rotate(180)
     flip = flipped_page is not None and _header_matches(flipped_page)
     grid = find_photo_grid(flipped_page if flip else page)
@@ -175,9 +179,11 @@ def scan_this_form(sheet, image: Image.Image) -> bool:
             return False
         flip = True
     if flip:
-        upright = upright.rotate(180, expand=True)
+        paper = paper.rotate(180)
         page = flipped_page
         rotation = (rotation + 180) % 360
+        left, right = upright.width - right, upright.width - left
+        paper_top, paper_bottom = upright.height - paper_bottom, upright.height - paper_top
     sheet.form_type = FORM_ID
     sheet.archive_rotation = rotation
     sheet.rotate_180_for_archive = rotation == 180
@@ -197,7 +203,7 @@ def scan_this_form(sheet, image: Image.Image) -> bool:
                      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz')
     name = re.sub(r'(?<=[a-z])(?=[A-Z])',' ',name).strip()
     sheet.employee = name if len(name) >= 4 and len(name.split()) >= 2 else ''
-    left,paper_top,right,paper_bottom = _paper_box(upright)
+    source_grid = replace(grid, image_size=paper.size)
     sheet.review_boxes = []
     cells = []
     for row in range(14):
@@ -210,8 +216,11 @@ def scan_this_form(sheet, image: Image.Image) -> bool:
             round(left+min(PAGE_W,x2)*(right-left)/PAGE_W),
             round(paper_top+min(PAGE_H,y2)*(paper_bottom-paper_top)/PAGE_H)])
         for col,field in enumerate(PUNCH_COLUMNS):
-            cell = grid.crop_cell(page,row,col)
-            if not _has_ink(cell):
+            cell = source_grid.crop_cell(paper, row, col)
+            # The ink gate's thresholds are in normalized pixels. Send the
+            # native rectified crop to the reader so it keeps faint strokes.
+            ink_view = cell.resize(grid.crop_size(row, col), Image.Resampling.LANCZOS)
+            if not _has_ink(ink_view):
                 sheet.days[row].recognized[field] = ''
                 sheet.days[row].observations[field] = {'status':'blank','raw':''}
             else:

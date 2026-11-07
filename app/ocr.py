@@ -112,6 +112,18 @@ def scan_page(path: str, image: Image.Image, page_number: int = 1) -> Sheet:
     grid = find_form_grid(image)
     if grid is None:
         warnings.append('Printed grid could not be aligned reliably. Check that each punch belongs to the correct row and column.')
+        for idx,day in enumerate(sheet.days):
+            for field in TIME_FIELDS:
+                day.observations[field] = {'status':'alignment-failed','raw':''}
+            warnings.append(f'Week {idx//7+1} {DISPLAY[idx%7]}, grid not aligned: read the full photograph')
+        sheet.scan_warnings = warnings
+        return sheet
+    for row in range(14):
+        quad = sum((grid.cell_quad(row,col) for col in range(4)),())
+        sheet.review_boxes.append([max(0,round(min(x for x,y in quad)-30)),
+                                   max(0,round(min(y for x,y in quad)-4)),
+                                   min(image.width,round(max(x for x,y in quad)+4)),
+                                   min(image.height,round(max(y for x,y in quad)+4))])
     cells = []
     for idx, (top, bottom) in enumerate(ROW_Y):
         for col, (field, (left, right)) in enumerate(zip(TIME_FIELDS, COL_X)):
@@ -134,6 +146,8 @@ def scan_page(path: str, image: Image.Image, page_number: int = 1) -> Sheet:
                 readings.append(Reading(text, confidence, confidence, source))
         decision = choose_time(readings)
         sheet.days[idx].recognized[field] = decision.raw
+        sheet.days[idx].observations[field] = {'status':decision.status,'raw':decision.raw,
+                                             'confidence_is_calibrated':False}
         if decision.value:
             setattr(sheet.days[idx], field, decision.value)
         else:
@@ -145,5 +159,6 @@ def scan_page(path: str, image: Image.Image, page_number: int = 1) -> Sheet:
     for idx, field, _cell, _fixed, blank in cells:
         if blank:
             sheet.days[idx].recognized[field] = ''
+            sheet.days[idx].observations[field] = {'status':'blank','raw':''}
     sheet.scan_warnings = warnings
     return sheet

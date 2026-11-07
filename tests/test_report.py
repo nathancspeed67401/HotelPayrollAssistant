@@ -2,12 +2,14 @@ from app.core import Sheet, ShiftDay
 from app.report import export_excel
 import zipfile
 import pytest
+from tests.helpers import approve_sheet
 
 
 def test_xlsx(tmp_path):
     s = Sheet('scan.jpg#page1', 'sample-sha', 'Sample Employee', '2026-10-24', approved=True)
     s.days[3] = ShiftDay('12A','8A')
     s.reviewed_days=[True]*14
+    approve_sheet(s,tmp_path)
     path = tmp_path / 'test.xlsx'
     export_excel(str(path), [s])
     assert zipfile.is_zipfile(path)

@@ -1,3 +1,7 @@
+# Current release decision: NOT READY FOR LIVE PAYROLL
+
+The v0.5 engineering candidate is documented in [DEVELOPMENT_PROGRESS.md](DEVELOPMENT_PROGRESS.md). The following v0.4 record is historical and does not validate the current source.
+
 # Release state — v0.4 engineering build — October 30, 2026
 
 The new local whole-entry reader and printed-grid alignment recover 11 of 16

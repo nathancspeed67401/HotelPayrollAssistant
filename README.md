@@ -1,3 +1,7 @@
+# Current candidate — v0.5 engineering build
+
+See [DEVELOPMENT_PROGRESS.md](DEVELOPMENT_PROGRESS.md) for current source, tests, real-photo comparison and open release gates. All numeric OCR results below are historical v0.4 development evidence. No manager release is approved.
+
 # Hotel Payroll Assistant — v0.4 handwriting engineering build
 
 Imports the hotel's handwritten two-week timesheet photos or PDFs, suggests
@@ -28,7 +32,7 @@ reader. Details and reproducible commands: [HANDWRITING_BENCHMARK_REPORT.md](HAN
 Use Python 3.12+ and a locally installed Tesseract OCR 5 executable.
 
 ```bash
-python -m pip install -r requirements.txt
+python -m pip install -r requirements.txt -r requirements-dev.txt
 python scripts/fetch_ocr_model.py
 python main.py --self-test
 python main.py

@@ -3,16 +3,18 @@ from __future__ import annotations
 import os
 import sys
 import threading
+import queue
 from datetime import date, timedelta, datetime
 from pathlib import Path
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from PIL import Image, ImageTk, ImageDraw, ImageOps
-from .core import Sheet, DISPLAY, TIME_FIELDS, calculate_day, display_time, load_session, save_session, summarize, validate_sheet, fully_reviewed
+from .core import Sheet, DISPLAY, TIME_FIELDS, calculate_day, display_time, load_session, save_session, summarize, validate_sheet, fully_reviewed, row_fingerprint, valid_period
 from .ocr import load_pages, scan_page, REF_W, REF_H, ROW_Y, COL_X
 from .photo_form import FORM_ID, row_rect_original
 from .report import export_excel
-from .review import archive_page, scan_available, review_issues
+from .review import archive_page, scan_available, review_issues, mark_row_reviewed, mark_sheet_approved, approval_current, unresolved_empty_fields
+from .storage import SessionLock, journal_import, recover_imports
 
 
 def app_dir() -> Path:
@@ -22,6 +24,13 @@ def app_dir() -> Path:
 class PayrollApp(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
+        try:
+            self._session_lock = SessionLock(app_dir())
+        except RuntimeError as exc:
+            self.withdraw()
+            messagebox.showerror('Payroll is already open',str(exc))
+            self.destroy()
+            raise
         self.title('Hotel Payroll Assistant')
         self.geometry('1240x800')
         self.minsize(1060, 680)
@@ -32,11 +41,17 @@ class PayrollApp(tk.Tk):
         self.preview_photo: ImageTk.PhotoImage | None = None
         self.busy = False
         self._loading_punches = False
+        self._loading_metadata = False
+        self._import_queue = queue.Queue()
+        self._cancel_import = threading.Event()
+        self.recovery_issues=[]
         self._editing_day = None
         self._styles()
         self._layout()
         for variable in self.punch_vars:
             variable.trace_add('write', self._punch_changed)
+        for variable in (self.name_var,self.date_var):
+            variable.trace_add('write',self._metadata_changed)
         self._restore_session()
         self.protocol('WM_DELETE_WINDOW', self.close)
 
@@ -114,6 +129,7 @@ class PayrollApp(tk.Tk):
         edit = ttk.LabelFrame(left, text='Edit selected day — enter 12A, 9:15P, 2:30A, etc.', padding=10)
         edit.pack(fill='x', pady=(9, 4))
         self.punch_vars = [tk.StringVar() for _ in range(4)]
+        self.blank_vars = [tk.BooleanVar() for _ in range(4)]
         self.punch_entries = []
         for c, label in enumerate(['Time In', 'Time Out', 'Second In', 'Second Out']):
             ttk.Label(edit, text=label, style='Body.TLabel').grid(row=0, column=c, padx=4, sticky='w')
@@ -121,6 +137,8 @@ class PayrollApp(tk.Tk):
             ent.grid(row=1, column=c, sticky='ew', padx=4, pady=4)
             ent.bind('<Return>', lambda _evt: self.save_day())
             self.punch_entries.append(ent)
+            ttk.Checkbutton(edit,text='Blank / crossed out',variable=self.blank_vars[c],
+                            command=self._blank_changed).grid(row=2,column=c,sticky='w')
             edit.columnconfigure(c, weight=1)
         ttk.Button(edit, text='✓ Checked: Save & Next', command=self.save_day).grid(row=1, column=4, padx=(10,0), sticky='ew')
         self.totals = tk.StringVar(value='Week 1: —    Week 2: —    Total: —')
@@ -141,30 +159,59 @@ class PayrollApp(tk.Tk):
 
     def _restore_session(self):
         path = app_dir() / 'current_session.json'
-        if not path.exists():
-            return
+        recovered_backup=False
         try:
-            self.sheets = load_session(str(path))
+            if path.exists():
+                try:
+                    self.sheets = load_session(str(path))
+                except (ValueError,KeyError,TypeError):
+                    self.sheets = load_session(str(path.with_suffix('.json.bak')))
+                    recovered_backup=True
+                    self.status.set('Recovered the last saved backup. Recheck recent changes.')
+            recovered = recover_imports(app_dir()/'pending-imports',self.recovery_issues)
+            known = {s.source_hash for s in self.sheets}
+            for journal,sheet in recovered:
+                if sheet.source_hash not in known:
+                    self.sheets.append(sheet);known.add(sheet.source_hash)
             for sheet in self.sheets:
-                if not scan_available(sheet) or not fully_reviewed(sheet.reviewed_days):
+                if recovered_backup:
+                    sheet.approved=False
+                    sheet.reviewed_days=[False]*14
+                    sheet.row_fingerprints=['']*14
+                if not approval_current(sheet) or review_issues(sheet):
                     sheet.approved = False
                 if not isinstance(sheet.reviewed_days, list) or len(sheet.reviewed_days) != 14:
                     sheet.reviewed_days = [False]*14
                 else:
                     sheet.reviewed_days = [v is True for v in sheet.reviewed_days]
+                if len(sheet.row_fingerprints) != 14:
+                    sheet.row_fingerprints = ['']*14
+                for i in range(min(14,len(sheet.days))):
+                    if sheet.row_fingerprints[i] != row_fingerprint(sheet,i):
+                        sheet.reviewed_days[i] = False
+            if recovered and self._save():
+                for journal,_ in recovered:
+                    journal.unlink(missing_ok=True)
             self.refresh_list()
             if self.sheets:
                 self.sheet_list.selection_set(0)
                 self.show_sheet(0)
-                self.status.set('Restored your last payroll session. Review each sheet before exporting.')
+                self.status.set('Recovered a previous backup. Recheck all rows before exporting.' if recovered_backup else 'Restored your last payroll session. Review each sheet before exporting.')
         except Exception as e:
+            self.recovery_issues.append(f'Could not restore previous payroll: {e}')
+            if path.is_file():
+                from .core import _atomic_write
+                preserved=path.with_name(f'preserved-{datetime.now():%Y%m%d-%H%M%S-%f}.json')
+                _atomic_write(preserved,path.read_bytes())
             self.status.set(f'Could not restore previous payroll session: {e}')
 
     def _save(self):
         try:
             save_session(str(app_dir() / 'current_session.json'), self.sheets)
+            return True
         except Exception as e:
             messagebox.showwarning('Save warning', f'Could not save your progress: {e}')
+            return False
 
     def refresh_list(self):
         selected = self.active_idx
@@ -181,46 +228,77 @@ class PayrollApp(tk.Tk):
                filetypes=[('Photos and PDFs','*.jpg *.jpeg *.png *.webp *.bmp *.tif *.tiff *.pdf'),('All files','*.*')])
         if not names: return
         self.busy = True
+        self._cancel_import.clear()
         self.btn_add.config(state='disabled')
+        self.btn_export.config(state='disabled')
         self.status.set(f'Reading {len(names)} file(s) locally. Please keep the app open.')
         def work():
-            found = []
             errors = []
             for name in names:
+                if self._cancel_import.is_set():break
                 try:
                     for page_num, im in enumerate(load_pages(name), 1):
+                        if self._cancel_import.is_set():break
                         scanned = scan_page(name, im, page_num)
-                        found.append(archive_page(scanned, im, app_dir() / 'scans'))
+                        scanned = archive_page(scanned, im, app_dir() / 'scans')
+                        journal = journal_import(scanned,app_dir()/'pending-imports')
+                        self._import_queue.put(('sheet',scanned,journal))
                 except Exception as e:
                     errors.append(f'{Path(name).name}: {e}')
-            self.after(0, lambda: self._complete_import(found, errors))
+            self._import_queue.put(('done',errors,None))
         threading.Thread(target=work, daemon=True).start()
+        self.after(100,self._poll_import)
+
+    def _poll_import(self):
+        try:
+            while True:
+                kind,value,journal = self._import_queue.get_nowait()
+                if kind == 'done':
+                    self._complete_import([],value)
+                    return
+                self._accept_import([value])
+                if self._save():journal.unlink(missing_ok=True)
+        except queue.Empty:
+            if self.busy:self.after(100,self._poll_import)
 
     def _complete_import(self, results: list[Sheet], errors: list[str]):
         self.busy = False
         self.btn_add.config(state='normal')
+        self.btn_export.config(state='normal')
+        added = self._accept_import(results)
+        self._save()
+        self.status.set(f'Added {added} sheet(s) in this step. {len(self.sheets)} in this payroll. Review all entries.')
+        if errors:
+            messagebox.showwarning('Some scans need attention', '\n'.join(errors[:10]))
+
+    def _accept_import(self, results):
+        self.capture_metadata()
         existing = {s.source_hash for s in self.sheets}
+        images = {s.archived_hash for s in self.sheets if s.archived_hash}
         unique = []
         for sheet in results:
-            if sheet.source_hash not in existing:
+            if sheet.source_hash not in existing and (not sheet.archived_hash or sheet.archived_hash not in images):
                 unique.append(sheet)
                 existing.add(sheet.source_hash)
+                if sheet.archived_hash:images.add(sheet.archived_hash)
         # The same pay-period date is shared by every employee; enter it once.
-        shared_date = next((x.period_start for x in self.sheets if x.period_start), '')
+        shared_date = next((x.period_start for x in self.sheets if valid_period(x.period_start)), '')
         for item in unique:
             if shared_date and not item.period_start:
                 item.period_start = shared_date
         self.sheets.extend(unique)
         self.refresh_list()
         if unique:
-            pos = len(self.sheets)-len(unique)
-            self.sheet_list.selection_clear(0,'end')
-            self.sheet_list.selection_set(pos)
-            self.show_sheet(pos)
-        self._save()
-        self.status.set(f'Added {len(unique)} sheet(s). {len(results)-len(unique)} duplicate(s) skipped. Review all entries.')
-        if errors:
-            messagebox.showwarning('Some scans need attention', '\n'.join(errors[:10]))
+            if self.active_idx is None:
+                pos = len(self.sheets)-len(unique)
+                self.sheet_list.selection_clear(0,'end')
+                self.sheet_list.selection_set(pos)
+                self.show_sheet(pos)
+        return len(unique)
+
+    def _metadata_changed(self,*_args):
+        if not self._loading_metadata:
+            self.capture_metadata()
 
     def select_sheet(self, _event=None):
         sel = self.sheet_list.curselection()
@@ -245,24 +323,33 @@ class PayrollApp(tk.Tk):
             s.employee, s.period_start = new_name, new_date
             s.approved = False
             # The form uses one shared payroll period; entering it once updates blank sheets.
-            if not old_period and new_date:
+            try:
+                valid_period = datetime.strptime(new_date,'%Y-%m-%d').weekday() == 5
+            except ValueError:
+                valid_period = False
+            if valid_period:
                 for other in self.sheets:
                     if not other.period_start:
                         other.period_start = new_date
                         other.approved = False
             self._save()
+            self.refresh_list()
 
     def show_sheet(self, index: int):
         self._editing_day = None
         self.active_idx = index
         s = self.sheets[index]
+        for entry in self.punch_entries[2:]:
+            entry.config(state='disabled' if s.form_type == FORM_ID else 'normal')
+        self._loading_metadata = True
         self.name_var.set(s.employee)
         if not s.period_start:
-            s.period_start = next((x.period_start for x in self.sheets if x.period_start), '')
+            s.period_start = next((x.period_start for x in self.sheets if valid_period(x.period_start)), '')
         try:
             self.date_var.set(datetime.strptime(s.period_start, '%Y-%m-%d').strftime('%m/%d/%Y'))
         except ValueError:
             self.date_var.set(s.period_start)
+        self._loading_metadata = False
         try:
             filename, page = s.source.rsplit('#page', 1)
             self.current_image = load_pages(filename)[int(page)-1]
@@ -308,6 +395,9 @@ class PayrollApp(tk.Tk):
         if values == [getattr(day, k) for k in TIME_FIELDS]:
             return
         for key, value in zip(TIME_FIELDS, values):
+            if getattr(day,key) != value and key in day.blank_confirmed:
+                day.blank_confirmed.remove(key)
+                self.blank_vars[TIME_FIELDS.index(key)].set(False)
             setattr(day, key, value)
         sheet.reviewed_days[row_index] = False
         sheet.approved = False
@@ -330,6 +420,8 @@ class PayrollApp(tk.Tk):
         try:
             for v,k in zip(self.punch_vars,TIME_FIELDS):
                 v.set(getattr(d,k))
+            for v,k in zip(self.blank_vars,TIME_FIELDS):
+                v.set(k in d.blank_confirmed)
         finally:
             self._loading_punches = False
         self._editing_day = (self.active_idx, int(sel[0]))
@@ -338,6 +430,15 @@ class PayrollApp(tk.Tk):
                     if w.startswith(f'Week {int(sel[0])//7+1} {DISPLAY[int(sel[0])%7]},')]
         self.note_var.set(('⚠ ' + '; '.join(errors or warnings)) if (errors or warnings) else 'Read the handwritten row on the right. Correct any OCR mistakes, then click Checked: Save & Next. Blank days may remain blank.')
         self.update_preview()
+
+    def _blank_changed(self):
+        if self._editing_day is None:return
+        si,row = self._editing_day
+        sheet = self.sheets[si]
+        sheet.days[row].blank_confirmed = [k for k,v in zip(TIME_FIELDS,self.blank_vars) if v.get()]
+        sheet.reviewed_days[row] = False
+        sheet.approved = False
+        self._save()
 
     def save_day(self):
         if self.active_idx is None: return
@@ -352,8 +453,14 @@ class PayrollApp(tk.Tk):
         # Saving an entire row marks its OCR warnings as manually reviewed.
         # This action does not approve the employee sheet or bypass validation.
         prefix = f'Week {i//7+1} {DISPLAY[i%7]},'
+        try:
+            mark_row_reviewed(s,i)
+        except ValueError as exc:
+            s.reviewed_days[i] = False
+            self._save()
+            messagebox.showwarning('Check this day',str(exc))
+            return
         s.scan_warnings = [warning for warning in s.scan_warnings if not warning.startswith(prefix)]
-        s.reviewed_days[i] = not bool(calculate_day(d)[1])
         s.approved = False
         self.refresh_days(); self.tree.selection_set(str(i)); self.tree.focus(str(i))
         self._save()
@@ -375,29 +482,14 @@ class PayrollApp(tk.Tk):
             if chosen:
                 i = int(chosen[0])
                 draw = ImageDraw.Draw(base)
-                if self.active_idx is not None and self.sheets[self.active_idx].form_type == FORM_ID:
-                    rect = row_rect_original(base, i)
-                else:
-                    start, end = ROW_Y[i]
-                    scale_x = base.width / REF_W
-                    scale_y = base.height / REF_H
-                    rect = (int(207*scale_x), int(start*scale_y),
-                            int(743*scale_x), int(end*scale_y))
+                rect = self._row_box(base,i)
                 draw.rectangle(rect, outline='#FF5533', width=max(3, int(base.width/250)))
             base.thumbnail((w,h), Image.Resampling.LANCZOS)
             self.preview_photo = ImageTk.PhotoImage(base)
             self.img_label.config(image=self.preview_photo, text='')
             if chosen:
                 i=int(chosen[0])
-                if self.active_idx is not None and self.sheets[self.active_idx].form_type == FORM_ID:
-                    box = row_rect_original(self.current_image, i)
-                    snippet = self.current_image.crop(box)
-                else:
-                    y1, y2 = ROW_Y[i]
-                    snippet = self.current_image.crop((int(180*self.current_image.width/REF_W),
-                        int((y1-4)*self.current_image.height/REF_H),
-                        int(762*self.current_image.width/REF_W),
-                        int((y2+4)*self.current_image.height/REF_H)))
+                snippet = self.current_image.crop(self._row_box(self.current_image,i))
                 snippet.thumbnail((w,105), Image.Resampling.LANCZOS)
                 # Keep separate reference alive.
                 self._row_image=ImageTk.PhotoImage(snippet)
@@ -412,13 +504,7 @@ class PayrollApp(tk.Tk):
             messagebox.showinfo('Choose a row', 'Select a day after importing a timesheet.')
             return
         i = int(selected[0])
-        if self.active_idx is not None and self.sheets[self.active_idx].form_type == FORM_ID:
-            box = row_rect_original(self.current_image, i)
-        else:
-            top, bottom = ROW_Y[i]
-            width, height = self.current_image.size
-            box = (int(175*width/REF_W), int((top-6)*height/REF_H),
-                   int(758*width/REF_W), int((bottom+6)*height/REF_H))
+        box = self._row_box(self.current_image,i)
         strip = self.current_image.crop(box)
         strip = strip.resize((max(950,strip.width*2), max(90,strip.height*2)), Image.Resampling.LANCZOS)
         popup = tk.Toplevel(self)
@@ -431,6 +517,18 @@ class PayrollApp(tk.Tk):
         label.image = photo
         label.pack(fill='both', expand=True, padx=12, pady=8)
         ttk.Button(popup, text='Close', command=popup.destroy).pack(pady=(0,8))
+
+    def _row_box(self,image,row):
+        sheet = self.sheets[self.active_idx] if self.active_idx is not None else None
+        if sheet and len(sheet.review_boxes) == 14:
+            return tuple(sheet.review_boxes[row])
+        # An unregistered sheet has no defensible row highlight. Show the
+        # complete source rather than an unrelated header or neighboring day.
+        if sheet:
+            return (0,0,image.width,image.height)
+        top,bottom = ROW_Y[row]
+        return (int(175*image.width/REF_W),int((top-6)*image.height/REF_H),
+                int(758*image.width/REF_W),int((bottom+6)*image.height/REF_H))
 
     def approve(self):
         if self.active_idx is None:
@@ -449,11 +547,17 @@ class PayrollApp(tk.Tk):
         detail = (f'\n\nWARNING: OCR could not read {unread_count} potentially written cells. Check those cells against the photo, including any blank rows.' if unread_count else '')
         if not messagebox.askyesno('Confirm reviewed', f'Have you checked every handwritten punch for {s.employee} against the original picture?{detail}\n\nThis approves the sheet for payroll export.'):
             return
-        s.approved = True
+        mark_sheet_approved(s)
         self._save(); self.refresh_list()
         self.status.set(f'Approved {s.employee}. Select the next timesheet or Export Excel.')
 
     def export(self):
+        if self.recovery_issues:
+            messagebox.showwarning('Resolve recovery problems before export','\n'.join(self.recovery_issues))
+            return
+        if self.busy:
+            messagebox.showwarning('Timesheets are still importing','Wait for every selected file to finish importing before exporting payroll.')
+            return
         self.capture_metadata()
         if not self.sheets:
             messagebox.showinfo('Nothing to export','Add timesheets first.')
@@ -484,7 +588,14 @@ class PayrollApp(tk.Tk):
         if self.busy:return
         if not messagebox.askyesno('Start new pay period', 'Clear the current working list?\n\nExport your current period first if needed. The original timesheet pictures will NOT be deleted.'):
             return
+        self.capture_metadata()
+        if self.sheets:
+            history = app_dir()/'previous-payrolls'/f'payroll-{datetime.now():%Y%m%d-%H%M%S-%f}.json'
+            try:save_session(str(history),self.sheets)
+            except OSError as exc:
+                messagebox.showerror('Could not preserve this payroll',str(exc));return
         self._editing_day = None
+        self.recovery_issues=[]
         self.sheets = []; self.active_idx = None; self.current_image = None
         self.sheet_list.delete(0,'end'); self.tree.delete(*self.tree.get_children())
         self.name_var.set(''); self.date_var.set('')
@@ -497,8 +608,14 @@ class PayrollApp(tk.Tk):
         if self.busy:
             if not messagebox.askyesno('Scan in progress','Close before scanning finishes?'):
                 return
+            self._cancel_import.set()
         self.capture_metadata()
         self._save();self.destroy()
+
+    def destroy(self):
+        if hasattr(self,'_session_lock'):
+            self._session_lock.close()
+        super().destroy()
 
 
 def main():

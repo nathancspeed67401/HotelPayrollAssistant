@@ -6,6 +6,8 @@ from pathlib import Path
 import hashlib
 import json
 import re
+import os
+import tempfile
 
 DAYS = ("SAT", "SUN", "MON", "TUE", "WED", "THU", "FRI")
 DISPLAY = ("Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday")
@@ -23,6 +25,8 @@ class ShiftDay:
     in2: str = ""
     out2: str = ""
     recognized: dict[str, str] = field(default_factory=dict)
+    observations: dict[str, dict] = field(default_factory=dict)
+    blank_confirmed: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -38,6 +42,11 @@ class Sheet:
     scan_warnings: list[str] = field(default_factory=list)
     form_type: str = "legacy_two_pair"
     rotate_180_for_archive: bool = False
+    archive_rotation: int = 0
+    review_boxes: list[list[int]] = field(default_factory=list)
+    row_fingerprints: list[str] = field(default_factory=lambda: ['']*14)
+    approval_fingerprint: str = ''
+    archived_hash: str = ''
     # Image bytes and file paths are intentionally NOT stored in the final payroll export.
 
     def to_dict(self) -> dict:
@@ -51,7 +60,11 @@ class Sheet:
                    approved=item.get("approved", False), reviewed_days=item.get("reviewed_days", [False]*14), notes=item.get("notes", ""),
                    scan_warnings=item.get("scan_warnings", []),
                    form_type=item.get("form_type", "legacy_two_pair"),
-                   rotate_180_for_archive=bool(item.get("rotate_180_for_archive", False)))
+                   rotate_180_for_archive=bool(item.get("rotate_180_for_archive", False)),
+                   archive_rotation=item.get('archive_rotation',0), review_boxes=item.get('review_boxes',[]),
+                   row_fingerprints=item.get('row_fingerprints',['']*14),
+                   approval_fingerprint=item.get('approval_fingerprint',''),
+                   archived_hash=item.get('archived_hash',''))
 
 
 def normalize_time(raw: str) -> tuple[str, str]:
@@ -62,7 +75,6 @@ def normalize_time(raw: str) -> tuple[str, str]:
     val = re.sub(r"\s+", "", str(raw or "")).upper().replace(".", "")
     if not val:
         return "", ""
-    val = val.replace("O", "0")
     # Ambiguous '230A' means 2:30 AM, '915P' 9:15 PM.
     m = re.fullmatch(r"(\d{1,2})(?::?(\d{2}))?(A|AM|P|PM)", val)
     if m:
@@ -125,6 +137,8 @@ def calculate_day(day: ShiftDay) -> tuple[float | None, list[str]]:
             errors.append("Shift longer than 16 hours; verify")
     if len(intervals) == 2 and intervals[1][0] < intervals[0][1]:
         errors.append("Split shifts overlap; verify clock times")
+    if intervals and intervals[-1][1]-intervals[0][0] > 1440:
+        errors.append('Split shifts span more than 24 hours; verify the printed day')
     if hours > 16:
         errors.append("More than 16 hours in one day; verify")
     if errors:
@@ -146,6 +160,8 @@ def validate_sheet(sheet: Sheet) -> list[str]:
         except ValueError:
             warnings.append("Pay period date must be YYYY-MM-DD")
     for i, day in enumerate(sheet.days):
+        if sheet.form_type == 'comfort_suites_single_pair' and (day.in2.strip() or day.out2.strip()):
+            warnings.append(f'Row {i+1}: this paper form supports only one in/out pair')
         _, errors = calculate_day(day)
         for msg in errors:
             warnings.append(f"Week {i // 7 + 1} {DISPLAY[i % 7]}: {msg}")
@@ -168,9 +184,30 @@ def summarize(sheet: Sheet) -> dict:
 def save_session(path: str, sheets: list[Sheet]) -> None:
     dest = Path(path)
     dest.parent.mkdir(parents=True, exist_ok=True)
-    tmp = dest.with_suffix(".tmp")
-    tmp.write_text(json.dumps({"version": 1, "sheets": [s.to_dict() for s in sheets]}, indent=2), encoding="utf-8")
-    tmp.replace(dest)
+    content = json.dumps({"version": 1, "sheets": [s.to_dict() for s in sheets]}, indent=2).encode('utf-8')
+    if dest.is_file():
+        previous = dest.read_bytes()
+        try:
+            data = json.loads(previous)
+            if data.get('version') == 1 and isinstance(data.get('sheets'),list):
+                _atomic_write(dest.with_suffix('.json.bak'),previous)
+        except (ValueError,AttributeError):
+            pass  # Preserve a valid backup when the current file is damaged.
+    _atomic_write(dest,content)
+
+
+def _atomic_write(dest: Path, content: bytes) -> None:
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(dir=dest.parent,delete=False,suffix='.tmp') as stream:
+            temporary = Path(stream.name)
+            stream.write(content)
+            stream.flush()
+            os.fsync(stream.fileno())
+        temporary.replace(dest)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
 
 
 def load_session(path: str) -> list[Sheet]:
@@ -180,5 +217,29 @@ def load_session(path: str) -> list[Sheet]:
     return [Sheet.from_dict(s) for s in data["sheets"]]
 
 
+def valid_period(value: str) -> bool:
+    try:
+        return datetime.strptime(value,'%Y-%m-%d').weekday() == 5
+    except (ValueError,TypeError):
+        return False
+
+
 def digest_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def row_fingerprint(sheet: Sheet, row: int) -> str:
+    day = sheet.days[row]
+    payload = {'punches':[getattr(day,k) for k in TIME_FIELDS],
+               'blank_confirmed':sorted(day.blank_confirmed),
+               'observations':day.observations, 'recognized':day.recognized}
+    return digest_bytes(json.dumps(payload,sort_keys=True).encode())
+
+
+def sheet_fingerprint(sheet: Sheet) -> str:
+    payload = {'employee':sheet.employee,'period_start':sheet.period_start,
+               'source_hash':sheet.source_hash,'source':sheet.source,'archived_hash':sheet.archived_hash,
+               'form_type':sheet.form_type,'review_boxes':sheet.review_boxes,
+               'days':[row_fingerprint(sheet,i) for i in range(len(sheet.days))],
+               'reviewed_days':sheet.reviewed_days,'row_fingerprints':sheet.row_fingerprints}
+    return digest_bytes(json.dumps(payload,sort_keys=True).encode())

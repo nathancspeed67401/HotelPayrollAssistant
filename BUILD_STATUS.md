@@ -1,3 +1,7 @@
+# Current build tracking
+
+The v0.5 candidate adds installed import/review/export/restart/uninstall verification. See [DEVELOPMENT_PROGRESS.md](DEVELOPMENT_PROGRESS.md) for current evidence. The build records below are historical.
+
 # Build status — October 30, 2026
 
 CircleCI Windows installer job 8 passed for the new handwriting reader:

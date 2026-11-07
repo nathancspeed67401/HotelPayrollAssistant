@@ -3,6 +3,7 @@ import os
 import pytest
 from PIL import Image
 from app.core import Sheet, ShiftDay, load_session
+from tests.helpers import approve_sheet
 
 pytestmark = pytest.mark.skipif(os.name != 'nt' and not os.environ.get('DISPLAY'), reason='GUI display required')
 
@@ -17,6 +18,7 @@ def ui(tmp_path, monkeypatch):
     sheet = Sheet(str(photo)+'#page1', 'hash', 'Person', '2026-10-24',
                   approved=True, reviewed_days=[True]*14)
     sheet.days[0] = ShiftDay('8A','4P')
+    approve_sheet(sheet,tmp_path)
     app.sheets = [sheet]
     app.refresh_list()
     app.show_sheet(0)
@@ -44,3 +46,46 @@ def test_duplicates_in_one_import_are_skipped(ui):
     app._complete_import([Sheet(sheet.source, 'new', 'Second', '2026-10-24'),
                           Sheet(sheet.source, 'new', 'Second', '2026-10-24')], [])
     assert len(app.sheets) == 2
+
+
+def test_partial_pay_period_date_is_not_copied_to_other_employees(ui):
+    app,sheet,_=ui
+    second=Sheet(sheet.source,'second','Second')
+    app.sheets.append(second)
+    app.date_var.set('1')
+    assert second.period_start == ''
+    app.date_var.set('11/07/2026')
+    assert second.period_start == '2026-11-07'
+    assert not sheet.approved
+
+
+def test_unreadable_writing_needs_an_explicit_blank_confirmation(ui):
+    app,sheet,_=ui
+    day=sheet.days[1]
+    day.observations['in1']={'status':'unreadable-or-invalid','raw':''}
+    sheet.reviewed_days[1]=False
+    app.tree.selection_set('1');app.select_day();app.save_day()
+    assert not sheet.reviewed_days[1]
+    app.blank_vars[0].set(True);app._blank_changed();app.save_day()
+    assert sheet.reviewed_days[1]
+
+
+def test_new_import_does_not_interrupt_the_row_being_reviewed(ui):
+    app,sheet,_=ui
+    app.tree.selection_set('4');app.select_day()
+    app._complete_import([Sheet(sheet.source,'different','Second')],[])
+    assert app.active_idx == 0
+    assert app.tree.selection()==('4',)
+
+
+def test_installed_workflow_uses_actual_import_review_approval_export_and_restart():
+    from app.smoke import run_workflow_smoke
+    assert run_workflow_smoke() == 0
+
+
+def test_export_is_blocked_while_selected_forms_are_still_importing(ui,monkeypatch):
+    app,sheet,_=ui
+    app.busy=True
+    import app.ui as module
+    monkeypatch.setattr(module.filedialog,'asksaveasfilename',lambda **k:pytest.fail('Export dialog opened during import'))
+    app.export()

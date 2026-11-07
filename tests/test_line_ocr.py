@@ -45,6 +45,22 @@ def test_midnight_is_preserved():
     assert normalize_time(choose_time([reading('12A')]).value) == ('00:00', '')
 
 
+def test_zero_padded_handwriting_does_not_establish_an_am_pm_convention():
+    assert choose_time([reading('08:00')]).value == ''
+
+
+def test_numeric_shorthand_can_be_scored_without_inventing_a_half_day():
+    from app.line_ocr import clock_key,choose_clock
+    assert clock_key('830AM')==clock_key('8:30A')
+    assert clock_key('1430')=='14:30'
+    assert choose_clock([reading('830')]).value==''
+
+
+def test_invalid_model_probabilities_are_reported():
+    with pytest.raises(LineOCRError,match='probabilities'):
+        decode_ctc(np.full((3,2),float('nan')),['blank','A'],'raw')
+
+
 def test_ctc_keeps_repeats_separated_by_blank_and_computes_character_minimum():
     # 1, 1, blank, 1, A, A, blank must decode as 11A, not 1A or 111AA.
     matrix = np.full((7, 3), .01)

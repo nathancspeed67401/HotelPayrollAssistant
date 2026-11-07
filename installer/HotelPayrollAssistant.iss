@@ -1,5 +1,5 @@
 #define MyAppName "Hotel Payroll Assistant"
-#define MyAppVersion "0.4.0"
+#define MyAppVersion "0.5.0"
 #define MyAppExeName "Hotel Payroll Assistant.exe"
 
 [Setup]

@@ -120,13 +120,18 @@ def _has_ink(cell: Image.Image) -> bool:
     gray = np.asarray(cell.convert('L'))
     if min(gray.shape) < 8:
         return True
+    # Registered cells can retain both edges of a printed border after camera
+    # resampling. Ignore only the perimeter; interior strike-throughs remain
+    # visible writing requiring explicit manager disposition.
+    if min(gray.shape) > 18:
+        gray = gray[5:-5,5:-5]
     background = cv2.GaussianBlur(gray, (21, 21), 0)
     inner = gray[:, 3:-3]
     contrast = background[:, 3:-3].astype('int16') - inner.astype('int16')
     mask = np.uint8((contrast > 13) & (inner < 230)) * 255
     _, _, stats, _ = cv2.connectedComponentsWithStats(mask)
     connected = int(np.count_nonzero(stats[1:, cv2.CC_STAT_AREA] >= 3))
-    return int(np.count_nonzero(mask)) >= 40 and connected >= 2
+    return int(np.count_nonzero(mask)) >= 25 and (connected >= 2 or bool(np.any(stats[1:, cv2.CC_STAT_AREA] >= 20)))
 
 
 def _time_candidate(cell: Image.Image) -> str:
@@ -148,38 +153,78 @@ def _time_candidate(cell: Image.Image) -> str:
 
 
 def scan_this_form(sheet, image: Image.Image) -> None:
-    """Map the real paper's two time columns into in1/out1; require review."""
-    from .core import DISPLAY, normalize_time
+    """Recognize complete registered cells; every result remains a proposal."""
+    from .core import DISPLAY
     from .ocr import _ocr_cell
-    page = normalized_page(image)
+    from .line_ocr import PHOTO_VIEWS, LineOCRError, choose_clock, get_recognizer
+    from .photo_grid import find_photo_grid
+    upright = ImageOps.exif_transpose(image).convert('RGB')
+    rotation = 0
+    if upright.width > upright.height:
+        upright = upright.rotate(90,expand=True)
+        rotation = 90
+    page = normalized_page(upright)
     sheet.form_type = FORM_ID
-    sheet.rotate_180_for_archive = False
     if not _header_matches(page) and _header_matches(page.rotate(180)):
+        upright = upright.rotate(180,expand=True)
         page = page.rotate(180)
-        sheet.rotate_180_for_archive = True
-    name = _ocr_cell(page.crop(NAME), 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz')
-    name = re.sub(r'(?<=[a-z])(?=[A-Z])', ' ', name).strip()
-    sheet.employee = name if len(name) >= 4 and len(name.split()) >= 2 else ''
+        rotation = (rotation+180)%360
+    sheet.archive_rotation = rotation
+    sheet.rotate_180_for_archive = rotation == 180
+    grid = find_photo_grid(page)
     warnings = ["OCR suggestions require checking every punch against the original photograph.",
-                "This form has no AM/PM field: a time like 6:00 needs manual AM/PM verification."]
-    transform = _row_transform(page)
-    for i in range(14):
-        day = sheet.days[i]
-        for field in ('in1', 'out1'):
-            cell = field_crop(page, i, field, transform)
+                "Missing AM/PM must be confirmed from the source; no half-day is inferred."]
+    if grid is None:
+        warnings.append('Printed rows could not be registered. No times were populated. Read the full photograph.')
+        for day in sheet.days:
+            for field in PUNCH_COLUMNS:
+                day.observations[field] = {'status':'alignment-failed','raw':''}
+        sheet.scan_warnings = warnings
+        return
+    # Derive the employee area from the actual registered columns and first row.
+    x = grid.cell_quad(0,0)[0][0]
+    top = grid.cell_quad(0,0)[0][1]
+    name = _ocr_cell(page.crop((max(0,x-200),max(0,top-110),x+120,max(0,top-30))),
+                     'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz')
+    name = re.sub(r'(?<=[a-z])(?=[A-Z])',' ',name).strip()
+    sheet.employee = name if len(name) >= 4 and len(name.split()) >= 2 else ''
+    left,paper_top,right,paper_bottom = _paper_box(upright)
+    sheet.review_boxes = []
+    cells = []
+    for row in range(14):
+        quad = grid.cell_quad(row,0)+grid.cell_quad(row,1)
+        x1,x2 = min(x for x,y in quad)-140,max(x for x,y in quad)+8
+        y1,y2 = min(y for x,y in quad)-4,max(y for x,y in quad)+4
+        sheet.review_boxes.append([
+            round(left+max(0,x1)*(right-left)/PAGE_W),
+            round(paper_top+max(0,y1)*(paper_bottom-paper_top)/PAGE_H),
+            round(left+min(PAGE_W,x2)*(right-left)/PAGE_W),
+            round(paper_top+min(PAGE_H,y2)*(paper_bottom-paper_top)/PAGE_H)])
+        for col,field in enumerate(PUNCH_COLUMNS):
+            cell = grid.crop_cell(page,row,col)
             if not _has_ink(cell):
-                day.recognized[field] = ''
-                continue
-            suggestion = _time_candidate(cell)
-            day.recognized[field] = suggestion
-            canon, error = normalize_time(suggestion)
-            explicit_24h = bool(re.fullmatch(r'(?:1[3-9]|2[0-3]):[0-5]\d', suggestion))
-            explicit_ampm = bool(re.fullmatch(r'\d{1,2}:[0-5]\d[AP]', suggestion))
-            if canon and not error and (explicit_ampm or explicit_24h):
-                setattr(day, field, suggestion)
+                sheet.days[row].recognized[field] = ''
+                sheet.days[row].observations[field] = {'status':'blank','raw':''}
             else:
-                warnings.append(
-                    f"Week {i//7+1} {DISPLAY[i%7]}, {field}: "
-                    f"writing visible; OCR suggestion {suggestion!r} needs verification"
-                )
+                cells.append((row,field,cell))
+    readings = [[] for _ in cells]
+    if cells:
+        try:
+            readings = get_recognizer().recognize([cell for _,_,cell in cells],views=PHOTO_VIEWS)
+        except LineOCRError as exc:
+            warnings.append(f'{exc}. Enter written punches from the photograph.')
+    for (row,field,cell),candidates in zip(cells,readings):
+        decision = choose_clock(candidates)
+        day = sheet.days[row]
+        day.recognized[field] = decision.raw
+        day.observations[field] = {
+            'status':decision.status,'raw':decision.raw,
+            'candidates':[{'text':r.text,'confidence':r.confidence,'minimum':r.minimum,'source':r.source}
+                          for r in candidates],
+            'confidence_is_calibrated':False}
+        if decision.value:
+            setattr(day,field,decision.value)
+        else:
+            warnings.append(f"Week {row//7+1} {DISPLAY[row%7]}, {field}: writing needs review "
+                            f"— {decision.status} (read: {decision.raw[:60]})")
     sheet.scan_warnings = warnings

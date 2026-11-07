@@ -34,33 +34,22 @@ def test_faint_pencil_detected_but_blank_ignored():
     assert photo_form._has_ink(marked)
 
 
-def test_ambiguous_no_ampm_is_not_silently_added(monkeypatch):
-    page = Image.new("RGB", (1000, 1470), "white")
-    monkeypatch.setattr(photo_form, "normalized_page", lambda image: page)
-    monkeypatch.setattr(photo_form, "_row_transform", lambda page: (1.0, 0))
-    monkeypatch.setattr(photo_form, "_has_ink", lambda cell: True)
-    monkeypatch.setattr(photo_form, "_time_candidate", lambda cell: "6:45")
-    monkeypatch.setattr("app.ocr._ocr_cell", lambda image, characters: "JaneDoe")
-    sheet = Sheet("example.png", "hash")
-    photo_form.scan_this_form(sheet, page)
-    assert sheet.form_type == photo_form.FORM_ID
-    assert sheet.days[0].recognized["in1"] == "6:45"
-    assert sheet.days[0].in1 == "" and sheet.days[0].out1 == ""
-    assert len(sheet.scan_warnings) > 2
-    assert sheet.reviewed_days == [False]*14
+def test_printed_cell_perimeter_is_not_employee_handwriting():
+    cell=Image.new('RGB',(125,48),(210,210,210))
+    ImageDraw.Draw(cell).rectangle((0,0,124,47),outline=(60,60,60),width=4)
+    assert not photo_form._has_ink(cell)
 
 
-def test_missing_minutes_do_not_turn_into_valid_hour(monkeypatch):
-    page = Image.new("RGB", (1000, 1470), "white")
-    monkeypatch.setattr(photo_form, "normalized_page", lambda image: page)
-    monkeypatch.setattr(photo_form, "_row_transform", lambda page: (1.0, 0))
-    monkeypatch.setattr(photo_form, "_has_ink", lambda cell: True)
-    monkeypatch.setattr(photo_form, "_time_candidate", lambda cell: "6A")
-    monkeypatch.setattr("app.ocr._ocr_cell", lambda image, characters: "JaneDoe")
-    sheet = Sheet("example.png", "hash")
-    photo_form.scan_this_form(sheet, page)
-    assert sheet.days[0].recognized["in1"] == "6A"
-    assert sheet.days[0].in1 == ""
+def test_ambiguous_no_ampm_is_not_silently_added():
+    from app.line_ocr import choose_clock,Reading
+    result = choose_clock([Reading('06:45',.99,.98,'raw')])
+    assert result.raw == '06:45' and not result.value
+    assert result.status == 'needs-AM/PM-or-minutes'
+
+
+def test_missing_minutes_do_not_turn_into_valid_hour():
+    from app.line_ocr import choose_clock,Reading
+    assert choose_clock([Reading('6A',.99,.98,'raw')]).value == ''
 
 
 def test_upside_down_form_rotates_for_ocr_and_archive(monkeypatch, tmp_path):

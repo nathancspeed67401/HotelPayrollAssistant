@@ -3,6 +3,10 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import xlsxwriter
 from .core import Sheet, calculate_day, summarize, validate_sheet, DAYS, fully_reviewed
+from .review import review_issues, approval_current
+import unicodedata
+import tempfile
+import os
 
 
 def export_excel(path: str, sheets: list[Sheet]) -> None:
@@ -14,17 +18,36 @@ def export_excel(path: str, sheets: list[Sheet]) -> None:
         bad = validate_sheet(s)
         if bad:
             raise ValueError(f"Errors for {s.employee}:\n" + "\n".join(bad))
+        issues = review_issues(s)
+        if issues or not approval_current(s):
+            raise ValueError(f'Not reviewed and approved for current entries: {s.employee}\n'+'\n'.join(issues))
     seen = set()
     for s in sheets:
-        key = (s.employee.casefold().strip(), s.period_start)
+        key = (' '.join(unicodedata.normalize('NFKC',s.employee).casefold().split()), s.period_start)
         if key in seen:
             raise ValueError(f"Duplicate employee/pay period: {s.employee}")
         seen.add(key)
+    if len({s.archived_hash for s in sheets}) != len(sheets):
+        raise ValueError('Duplicate timesheet image in payroll')
     periods = {s.period_start for s in sheets}
     if len(periods) != 1:
         raise ValueError("All employees must have the same two-week pay period")
     first = datetime.strptime(next(iter(periods)), "%Y-%m-%d").date()
-    workbook = xlsxwriter.Workbook(path)
+    destination = Path(path)
+    handle = tempfile.NamedTemporaryFile(dir=destination.parent,suffix='.xlsx',delete=False)
+    temporary = Path(handle.name)
+    handle.close()
+    try:
+        _write_workbook(str(temporary),sheets,first)
+        with temporary.open('rb') as stream:
+            os.fsync(stream.fileno())
+        temporary.replace(destination)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def _write_workbook(path, sheets, first):
+    workbook = xlsxwriter.Workbook(path,{'strings_to_formulas':False,'strings_to_urls':False})
     workbook.set_properties({"title": "Hotel payroll - review-approved summary", "comments": "Time assignments follow paper-timesheet labels. Overtime requires employer workweek verification."})
     navy = '#152B45'
     header = workbook.add_format({'bold': True, 'font_color': '#FFFFFF', 'bg_color': navy, 'align':'center', 'valign':'vcenter', 'border':1})
@@ -59,7 +82,9 @@ def export_excel(path: str, sheets: list[Sheet]) -> None:
     summary.write(total_row, 0, 'TOTAL', header)
     for c in range(1, 6):
         cc = chr(65 + c)
-        summary.write_formula(total_row, c, f'=SUM({cc}6:{cc}{total_row})', number)
+        field = ('week1','week2','total','regular','overtime')[c-1]
+        summary.write_formula(total_row, c, f'=SUM({cc}6:{cc}{total_row})', number,
+                              round(sum(summarize(s)[field] for s in sheets),2))
     summary.write_blank(total_row, 6, None, header)
     summary.autofilter(4, 0, total_row-1, 6)
 

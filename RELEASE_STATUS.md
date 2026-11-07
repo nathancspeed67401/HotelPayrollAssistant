@@ -1,26 +1,27 @@
-# Current release decision: NOT READY FOR LIVE PAYROLL
+# Release status · November 7, 2026
 
-The v0.5 engineering candidate is documented in [DEVELOPMENT_PROGRESS.md](DEVELOPMENT_PROGRESS.md). The following v0.4 record is historical and does not validate the current source.
+**v0.5.2 is an engineering candidate for supervised testing. Live payroll
+approval remains open.**
 
-# Release state — v0.4 engineering build — October 30, 2026
+See [Development progress](DEVELOPMENT_PROGRESS.md) for source and verification,
+and [Build status](BUILD_STATUS.md) for the exact Windows build.
 
-The new local whole-entry reader and printed-grid alignment recover 11 of 16
-unambiguous punches on the original development sheet, with zero incorrect
-filled times observed. Five still need manual entry; two additional entries
-lack AM/PM and remain unresolved. This is an improved supervised engineering
-build, not completed automatic handwriting recognition.
+## Supervised desktop test
 
-The composite benchmark improved from the historical 34 correct/10 wrong to
-36 correct/zero wrong of 66. The printed-font set now reads all 128 unambiguous
-punches and leaves its one ambiguous entry empty. Blank cells remain empty in
-these development checks. These results do not validate other writers.
+1. On a test Windows account, download the candidate setup from the build's
+   **Artifacts** tab, keep the desktop shortcut selected, and launch the app.
+2. Select **Add Photos / PDFs** and pick fictional time sheets. Enter the
+   employee name and the first Saturday of the 14-day payroll period.
+3. Compare the original image and the selected row. Choose **Use** only when
+   the displayed suggestion matches the source. Enter a confirmed time with
+   AM/PM or explicit 24-hour notation. Use **Blank / crossed out** to clear a
+   marked cell only after checking the original.
+4. Use **Checked: Save & Next** on all 14 rows. **Approve This Sheet** then
+   enables export once every employee is ready. Close and reopen the app to
+   verify that the working payroll is saved.
+5. Open the Excel workbook and check the summary and dated detail rows.
+   Elapsed punch hours come from exact minutes. Estimated regular and overtime
+   hours still need the hotel's verified workweek and payroll policies.
 
-All 14 rows still require explicit visual review. Sheet approval, valid punch
-pairs, a valid pay-period date, an employee, and the archived original are
-required before export. No OCR suggestion finalizes pay.
-
-63 local tests and the offline real-model self-test pass; three local GUI tests
-are skipped for lack of a display. The fresh Windows installer workflow passed
-as CircleCI job 8 on source commit `7a242619cb55b5d30f70be42a7f87b1806df7774`,
-including installed-model and GUI checks. See `BUILD_STATUS.md` for the tested
-source, artifact location, and verification limits.
+Before live use, confirm the hotel's payroll rules, independently check the
+real-photo accuracy and get Lynnette's acceptance on her Windows computer.

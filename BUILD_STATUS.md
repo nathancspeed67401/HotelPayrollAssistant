@@ -1,34 +1,26 @@
-# Current build tracking
+# Windows build status · November 7, 2026
 
-The v0.5 candidate adds installed import/review/export/restart/uninstall verification. See [DEVELOPMENT_PROGRESS.md](DEVELOPMENT_PROGRESS.md) for current evidence. The build records below are historical.
+**v0.5.2 engineering candidate. Use fictional timesheets for acceptance.**
 
-# Build status — October 30, 2026
+| Windows Server 2022 job | Exact source | Status |
+| --- | --- | --- |
+| [CircleCI #27](https://circleci.com/gh/nathancspeed67401/HotelPayrollAssistant/27) | [`a9b641417350c621858ef07ab748a28d38df7ac0`](https://github.com/nathancspeed67401/HotelPayrollAssistant/commit/a9b641417350c621858ef07ab748a28d38df7ac0) | Passed |
+| [CircleCI #26](https://circleci.com/gh/nathancspeed67401/HotelPayrollAssistant/26) | [`bb467ffb7cbe951899823bbf535a2ca2f70b99bd`](https://github.com/nathancspeed67401/HotelPayrollAssistant/commit/bb467ffb7cbe951899823bbf535a2ca2f70b99bd) | Passed |
+| [CircleCI #25](https://circleci.com/gh/nathancspeed67401/HotelPayrollAssistant/25) | `21e666954f43eef2b340235f6d1bf384d0529910` | Passed |
 
-CircleCI Windows installer job 8 passed for the new handwriting reader:
-https://circleci.com/gh/nathancspeed67401/HotelPayrollAssistant/8
+The job compiles the Inno Setup executable, installs it, exercises real offline
+recognition and the desktop workflow with fictional photo and PDF inputs,
+and uninstalls it. The candidate passed 122 local tests with external
+network access blocked and the display set to 1366×768.
 
-Tested source commit: `7a242619cb55b5d30f70be42a7f87b1806df7774`.
-Tested source tree: `4880975bb8c3fcc9eb63c3b3c457ee737655d8cf`.
+Open the candidate job's **Artifacts** tab with an authenticated CircleCI
+account that can access this payroll project. The configured installer is
+`Windows-Setup/HotelPayrollAssistant_Setup.exe`. The corresponding checksum and
+commit manifests are under `Verification`.
 
-The successful Windows workflow downloaded and SHA-256 verified the pinned
-public model, ran the automated tests (including Windows GUI tests), built the
-Inno Setup installer, silently installed it, exercised the installed ONNX,
-digit model, Tesseract, payroll calculation and Excel export paths, and opened
-and closed the installed GUI. Its artifacts include verification records and
-`Windows-Setup/HotelPayrollAssistant_Setup.exe`.
+The session could verify the job status through GitHub. The private artifact
+listing was inaccessible, so the setup bytes and SHA-256 are unverified
+independently. Windows 10/11 field testing and Lynnette's acceptance remain open.
 
-The green status was retrieved through GitHub. The installer binary and
-individual CircleCI logs/artifact listing have not been downloaded in this
-session; a normal Windows laptop has not been tested here.
-
-Local verification: 63 tests passed, three GUI tests skipped for lack of a
-display. The real-model installation/export self-test also passed under an
-outbound-network deny filter. The final documentation/research follow-up does
-not change the application, dependencies, tests, CI workflow, or installer
-source from the tested commit above.
-
-Handwriting reliability remains incomplete: 11 of 16 unambiguous punches were
-recovered on the original development sheet; five need manual entry and two
-additional punches omit AM/PM. All 14 rows require review before approval.
-See `HANDWRITING_BENCHMARK_REPORT.md` for measured development results and
-`experiments/RESEARCH_NOTES.md` for excluded experiments.
+See [Release status](RELEASE_STATUS.md) for the test workflow and
+[Development progress](DEVELOPMENT_PROGRESS.md) for the remaining gates.

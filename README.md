@@ -1,6 +1,6 @@
-# Current candidate — v0.5 engineering build
+# Current candidate — v0.5.2 engineering build
 
-See [DEVELOPMENT_PROGRESS.md](DEVELOPMENT_PROGRESS.md) for current source, tests, real-photo comparison and open release gates. All numeric OCR results below are historical v0.4 development evidence. No manager release is approved.
+See [Development progress](DEVELOPMENT_PROGRESS.md) for measured real-photo accuracy and [Release status](RELEASE_STATUS.md) for the supervised test workflow. Live payroll approval remains open.
 
 # Hotel Payroll Assistant — v0.4 handwriting engineering build
 
@@ -47,8 +47,10 @@ Missing or damaged weights leave unread punches for manual review.
 
 1. Add photos or PDFs. The app archives a local copy for later review.
 2. Enter the employee and the first Saturday of the pay period.
-3. Compare each of the 14 rows with the image, correct punches, and select
-   **Checked: Save & Next**, including blank days.
+3. Compare each of the 14 rows with the image. On the Comfort Suites single-pair
+   form the time fields start empty. Select **Use** only when a suggested time
+   matches the photo, or enter the verified time. Select **Checked: Save & Next**
+   for every row, including blank days.
 4. Approve the sheet and export Excel. Incomplete punches, invalid times,
    duplicate employees, missing review, or missing source images block export.
 

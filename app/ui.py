@@ -14,7 +14,7 @@ from .ocr import load_pages, scan_page, REF_W, REF_H, ROW_Y, COL_X
 from .photo_form import FORM_ID, row_rect_original
 from .report import export_excel
 from .review import archive_page, scan_available, review_issues, mark_row_reviewed, mark_sheet_approved, approval_current, unresolved_empty_fields
-from .storage import SessionLock, journal_import, recover_imports
+from .storage import SessionLock, journal_import, merge_imports, recover_imports
 
 
 def app_dir() -> Path:
@@ -46,6 +46,7 @@ class PayrollApp(tk.Tk):
         self._loading_metadata = False
         self._import_queue = queue.Queue()
         self._cancel_import = threading.Event()
+        self._import_added = self._import_repaired = self._import_duplicates = 0
         self.recovery_issues=[]
         self._editing_day = None
         self._styles()
@@ -178,10 +179,7 @@ class PayrollApp(tk.Tk):
                     recovered_backup=True
                     self.status.set('Recovered the last saved backup. Recheck recent changes.')
             recovered = recover_imports(app_dir()/'pending-imports',self.recovery_issues)
-            known = {s.source_hash for s in self.sheets}
-            for journal,sheet in recovered:
-                if sheet.source_hash not in known:
-                    self.sheets.append(sheet);known.add(sheet.source_hash)
+            merge_imports(self.sheets, [sheet for _, sheet in recovered])
             for sheet in self.sheets:
                 if recovered_backup:
                     sheet.approved=False
@@ -238,6 +236,7 @@ class PayrollApp(tk.Tk):
         if not names: return
         self.busy = True
         self._cancel_import.clear()
+        self._import_added = self._import_repaired = self._import_duplicates = 0
         self.btn_add.config(state='disabled')
         self.btn_export.config(state='disabled')
         self.status.set(f'Reading {len(names)} file(s) locally. Please keep the app open.')
@@ -265,7 +264,8 @@ class PayrollApp(tk.Tk):
                 if kind == 'done':
                     self._complete_import([],value)
                     return
-                self._accept_import([value])
+                self._record_import([value])
+                self.status.set(f'Imported {self._import_added} timesheet(s). Reading remaining pages locally…')
                 if self._save():journal.unlink(missing_ok=True)
         except queue.Empty:
             if self.busy:self.after(100,self._poll_import)
@@ -274,36 +274,42 @@ class PayrollApp(tk.Tk):
         self.busy = False
         self.btn_add.config(state='normal')
         self.btn_export.config(state='normal')
-        added = self._accept_import(results)
-        self._save()
-        self.status.set(f'Added {added} sheet(s) in this step. {len(self.sheets)} in this payroll. Review all entries.')
+        self._record_import(results)
+        saved = self._save()
+        status = f'Added {self._import_added} timesheet(s). {len(self.sheets)} in this payroll.'
+        if self._import_duplicates:
+            status += f' Skipped {self._import_duplicates} duplicate(s).'
+        if self._import_repaired:
+            status += f' Restored {self._import_repaired} original image(s).'
+        self.status.set(status)
+        self._import_added = self._import_repaired = self._import_duplicates = 0
+        if self._cancel_import.is_set():
+            if saved:
+                self.destroy()
+            return
         if errors:
             messagebox.showwarning('Some scans need attention', '\n'.join(errors[:10]))
 
+    def _record_import(self, results):
+        added, repaired = self._accept_import(results)
+        self._import_added += added
+        self._import_repaired += repaired
+        self._import_duplicates += len(results) - added - repaired
+
     def _accept_import(self, results):
         self.capture_metadata()
-        existing = {s.source_hash for s in self.sheets}
-        images = {s.archived_hash for s in self.sheets if s.archived_hash}
-        unique = []
-        for sheet in results:
-            if sheet.source_hash not in existing and (not sheet.archived_hash or sheet.archived_hash not in images):
-                unique.append(sheet)
-                existing.add(sheet.source_hash)
-                if sheet.archived_hash:images.add(sheet.archived_hash)
-        # The same pay-period date is shared by every employee; enter it once.
-        shared_date = next((x.period_start for x in self.sheets if valid_period(x.period_start)), '')
-        for item in unique:
-            if shared_date and not item.period_start:
-                item.period_start = shared_date
-        self.sheets.extend(unique)
+        active = self.sheets[self.active_idx] if self.active_idx is not None else None
+        source = active.source if active is not None else None
+        added, repaired = merge_imports(self.sheets, results)
         self.refresh_list()
-        if unique:
-            if self.active_idx is None:
-                pos = len(self.sheets)-len(unique)
-                self.sheet_list.selection_clear(0,'end')
-                self.sheet_list.selection_set(pos)
-                self.show_sheet(pos)
-        return len(unique)
+        if added and active is None:
+            pos = len(self.sheets) - added
+            self.sheet_list.selection_clear(0, 'end')
+            self.sheet_list.selection_set(pos)
+            self.show_sheet(pos)
+        elif active is not None and source != active.source:
+            self.show_sheet(self.active_idx)
+        return added, repaired
 
     def _metadata_changed(self,*_args):
         if not self._loading_metadata:
@@ -460,6 +466,9 @@ class PayrollApp(tk.Tk):
 
     def save_day(self):
         if self.active_idx is None: return
+        if self.current_image is None:
+            messagebox.showwarning('Photo missing', 'Reimport the original image before checking this row.')
+            return
         sel = self.tree.selection()
         if not sel:
             messagebox.showinfo('Select a day','Select a row in the table first.')
@@ -624,11 +633,16 @@ class PayrollApp(tk.Tk):
 
     def close(self):
         if self.busy:
+            if self._cancel_import.is_set():
+                return
             if not messagebox.askyesno('Scan in progress','Close before scanning finishes?'):
                 return
             self._cancel_import.set()
+            self.status.set('Finishing the current page and saving before closing…')
+            return
         self.capture_metadata()
-        self._save();self.destroy()
+        if self._save():
+            self.destroy()
 
     def destroy(self):
         if hasattr(self,'_session_lock'):

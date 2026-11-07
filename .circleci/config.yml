@@ -69,7 +69,7 @@ jobs:
               Get-Content (Join-Path $env:TEMP 'HotelPayrollAssistant_gui_test_error.txt') -ErrorAction SilentlyContinue
               throw 'Installed import/review/approve/restart/export workflow failed'
             }
-            'PASS: installed PDF import, registered OCR, manual correction, all-row review, approval, Excel export, restart recovery, duplicate prevention, edited-data export block' | Out-File -Encoding utf8 test-results/installed-workflow.txt
+            'PASS: installed photo and PDF batch import, registered OCR, manual correction, all-row review, approval, Excel export, restart recovery, duplicate prevention, edited-data export block' | Out-File -Encoding utf8 test-results/installed-workflow.txt
             $uninstaller=Join-Path $destination 'unins000.exe'
             if (!(Test-Path $uninstaller)) { throw 'Uninstaller missing' }
             $removed=Start-Process $uninstaller -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART') -Wait -PassThru

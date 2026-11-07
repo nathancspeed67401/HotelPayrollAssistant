@@ -61,4 +61,39 @@ def test_reimport_uses_fresh_source_instead_of_a_changed_existing_archive(tmp_pa
     second=archive_page(Sheet('photo','same-source-hash'),image,tmp_path)
     with Image.open(second.source.split('#page')[0]) as restored:
         assert restored.getpixel((0,0))==(255,255,255)
-    assert list(tmp_path.glob('*.preserved-*.png'))
+    assert first.source != second.source
+    assert destination.read_bytes() == b'changed archive'
+
+
+def test_reimport_with_new_orientation_keeps_approved_source(tmp_path):
+    from PIL import ImageDraw
+
+    image = Image.new('RGB', (100, 100), 'white')
+    ImageDraw.Draw(image).rectangle((0, 0, 20, 20), fill='black')
+    first = archive_page(Sheet('photo', 'source-hash', 'Employee', '2026-10-24'), image, tmp_path)
+    for row in range(14):
+        mark_row_reviewed(first, row)
+    mark_sheet_approved(first)
+    rotated = Sheet('photo', 'source-hash', archive_rotation=180)
+    archive_page(rotated, image, tmp_path)
+    assert rotated.source != first.source
+    assert not review_issues(first)
+
+
+def test_recovery_reattaches_identical_source_without_losing_review_edits(tmp_path):
+    from app.storage import merge_imports
+
+    image = Image.new('RGB', (100, 100), 'white')
+    original = archive_page(Sheet('photo', 'source-hash', 'Employee', '2026-10-24'), image, tmp_path)
+    original.days[0] = ShiftDay('11P', '7A')
+    for row in range(14):
+        mark_row_reviewed(original, row)
+    mark_sheet_approved(original)
+    Path(original.source.rsplit('#page', 1)[0]).write_bytes(b'damaged')
+    recovered = archive_page(Sheet('photo', 'source-hash'), image, tmp_path)
+
+    sheets = [original]
+    assert merge_imports(sheets, [recovered]) == (0, 1)
+    assert sheets == [original] and original.source == recovered.source
+    assert original.days[0].out1 == '7A' and all(original.reviewed_days)
+    assert not original.approved and not review_issues(original)

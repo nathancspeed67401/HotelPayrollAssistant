@@ -23,35 +23,47 @@ def archive_page(sheet: Sheet, image: Image.Image, directory: Path) -> Sheet:
         with tmp.open('r+b') as stream:
             os.fsync(stream.fileno())
         expected = digest_bytes(tmp.read_bytes())
+        if sheet.archived_hash and sheet.archived_hash != expected:
+            raise ValueError('Archived timesheet image changed; reimport and review it')
         if destination.exists() and digest_bytes(destination.read_bytes()) != expected:
-            # Reimporting the actual source repairs a changed archive, but
-            # preserves the previous bytes and invalidates stale approvals.
-            previous = destination.with_name(destination.stem+'.preserved-'+digest_bytes(destination.read_bytes())+'.png')
-            if not previous.exists():
-                from .core import _atomic_write
-                _atomic_write(previous,destination.read_bytes())
-        if not destination.exists() or digest_bytes(destination.read_bytes()) != expected:
+            # Different orientation or repaired bytes get a separate filename.
+            # An earlier session may still depend on the original filename.
+            destination = destination.with_name(f'{destination.stem}-{expected}.png')
+        if destination.exists():
+            if digest_bytes(destination.read_bytes()) != expected:
+                raise ValueError('A preserved timesheet image conflicts with this import')
+        else:
             tmp.replace(destination)
     finally:
         tmp.unlink(missing_ok=True)
     sheet.source = str(destination) + '#page1'
-    actual = digest_bytes(destination.read_bytes())
-    if sheet.archived_hash and sheet.archived_hash != actual:
-        raise ValueError('Archived timesheet image changed; reimport and review it')
-    sheet.archived_hash = actual
+    sheet.archived_hash = expected
     return sheet
 
 
+def _source_path(sheet: Sheet) -> Path:
+    return Path(sheet.source.rsplit('#page', 1)[0])
+
+
 def scan_available(sheet: Sheet) -> bool:
-    return Path(sheet.source.split('#page')[0]).is_file()
+    return _source_path(sheet).is_file()
+
+
+def source_issue(sheet: Sheet) -> str:
+    try:
+        if not scan_available(sheet):
+            return 'The original timesheet image is missing'
+        if sheet.archived_hash and digest_bytes(_source_path(sheet).read_bytes()) != sheet.archived_hash:
+            return 'The original timesheet image changed; reimport and review it'
+    except OSError:
+        return 'The original timesheet image could not be read'
+    return ''
 
 
 def review_issues(sheet: Sheet) -> list[str]:
     issues = validate_sheet(sheet)
-    if not scan_available(sheet):
-        issues.append('The original timesheet image is missing')
-    elif sheet.archived_hash and digest_bytes(Path(sheet.source.split('#page')[0]).read_bytes()) != sheet.archived_hash:
-        issues.append('The original timesheet image changed; reimport and review it')
+    if problem := source_issue(sheet):
+        issues.append(problem)
     if not fully_reviewed(sheet.reviewed_days):
         count = sum(v is True for v in sheet.reviewed_days) if isinstance(sheet.reviewed_days, list) else 0
         issues.append(f'Only {count} of 14 day rows confirmed against the photo')
@@ -89,7 +101,7 @@ def mark_sheet_approved(sheet: Sheet) -> None:
     if issues:
         raise ValueError('\n'.join(issues))
     if not sheet.archived_hash:
-        sheet.archived_hash = digest_bytes(Path(sheet.source.split('#page')[0]).read_bytes())
+        sheet.archived_hash = digest_bytes(_source_path(sheet).read_bytes())
     sheet.approved = True
     sheet.approval_fingerprint = sheet_fingerprint(sheet)
 

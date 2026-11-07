@@ -48,6 +48,22 @@ def test_duplicates_in_one_import_are_skipped(ui):
     assert len(app.sheets) == 2
 
 
+def test_recovery_deduplicates_pending_import_with_same_archive_bytes(ui):
+    from app.storage import journal_import
+
+    app, sheet, folder = ui
+    assert app._save()
+    duplicate = Sheet.from_dict(sheet.to_dict())
+    duplicate.source_hash = 'different-encoding'
+    journal = journal_import(duplicate, folder / 'pending-imports')
+    app.sheets = []
+    app.active_idx = None
+    app._restore_session()
+    assert len(app.sheets) == 1
+    assert app.sheets[0].approved
+    assert not journal.exists()
+
+
 def test_partial_pay_period_date_is_not_copied_to_other_employees(ui):
     app,sheet,_=ui
     second=Sheet(sheet.source,'second','Second')

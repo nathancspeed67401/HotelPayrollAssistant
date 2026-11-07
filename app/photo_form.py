@@ -152,8 +152,8 @@ def _time_candidate(cell: Image.Image) -> str:
     return primary or alternate
 
 
-def scan_this_form(sheet, image: Image.Image) -> None:
-    """Recognize complete registered cells; every result remains a proposal."""
+def scan_this_form(sheet, image: Image.Image) -> bool:
+    """Try the single-pair reader; every recognized clock remains a proposal."""
     from .core import DISPLAY
     from .ocr import _ocr_cell
     from .line_ocr import PHOTO_VIEWS, LineOCRError, choose_clock, get_recognizer
@@ -164,14 +164,23 @@ def scan_this_form(sheet, image: Image.Image) -> None:
         upright = upright.rotate(90,expand=True)
         rotation = 90
     page = normalized_page(upright)
+    flipped_page = None if _header_matches(page) else page.rotate(180)
+    flip = flipped_page is not None and _header_matches(flipped_page)
+    grid = find_photo_grid(flipped_page if flip else page)
+    if flipped_page is not None and not flip and grid is None:
+        # The table can identify the form even when the page heading is
+        # unreadable. Only a verified table can select this orientation.
+        grid = find_photo_grid(flipped_page)
+        if grid is None:
+            return False
+        flip = True
+    if flip:
+        upright = upright.rotate(180, expand=True)
+        page = flipped_page
+        rotation = (rotation + 180) % 360
     sheet.form_type = FORM_ID
-    if not _header_matches(page) and _header_matches(page.rotate(180)):
-        upright = upright.rotate(180,expand=True)
-        page = page.rotate(180)
-        rotation = (rotation+180)%360
     sheet.archive_rotation = rotation
     sheet.rotate_180_for_archive = rotation == 180
-    grid = find_photo_grid(page)
     warnings = ["OCR suggestions require checking every punch against the original photograph.",
                 "Use a suggested time only after comparing it with the photograph."]
     if grid is None:
@@ -180,7 +189,7 @@ def scan_this_form(sheet, image: Image.Image) -> None:
             for field in PUNCH_COLUMNS:
                 day.observations[field] = {'status':'alignment-failed','raw':''}
         sheet.scan_warnings = warnings
-        return
+        return True
     # Derive the employee area from the actual registered columns and first row.
     x = grid.cell_quad(0,0)[0][0]
     top = grid.cell_quad(0,0)[0][1]
@@ -228,3 +237,4 @@ def scan_this_form(sheet, image: Image.Image) -> None:
             warnings.append(f"Week {row//7+1} {DISPLAY[row%7]}, {field}: writing needs review "
                             f"— {decision.status} (read: {decision.raw[:60]})")
     sheet.scan_warnings = warnings
+    return True

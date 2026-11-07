@@ -6,6 +6,7 @@ import pytest
 from app.core import Sheet, ShiftDay, calculate_day, validate_sheet, summarize, save_session, load_session, normalize_time
 from app.ocr import load_pages, _likely_blank, _cleanup_time
 from app.report import export_excel
+from tests.helpers import approve_sheet
 
 FIXTURES=Path(__file__).resolve().parents[1]/'test_samples'/'ground_truth.json'
 
@@ -54,6 +55,7 @@ def test_approved_valid_batch_export(sample_cases, tmp_path):
             s=sheet_from_case(case)
             s.approved=True
             s.reviewed_days=[True]*14
+            approve_sheet(s,tmp_path,case['file'])
             sheets.append(s)
     path=tmp_path/'approved_test_batch.xlsx'
     export_excel(str(path),sheets)
@@ -73,6 +75,7 @@ def test_approved_valid_batch_export(sample_cases, tmp_path):
 def test_duplicate_person_period_is_blocked(tmp_path):
     a=Sheet('a','a','First Employee','2026-10-24',approved=True,reviewed_days=[True]*14)
     b=Sheet('b','b','FIRST EMPLOYEE','2026-10-24',approved=True,reviewed_days=[True]*14)
+    approve_sheet(a,tmp_path,'a');approve_sheet(b,tmp_path,'b')
     with pytest.raises(ValueError,match='Duplicate employee'):
         export_excel(str(tmp_path/'duplicate.xlsx'),[a,b])
 

@@ -1,0 +1,101 @@
+{
+  "seed": 67401,
+  "epochs": 6,
+  "training": 101520,
+  "validation": 11280,
+  "test": 18800,
+  "test_accuracy": 0.8489361702127659,
+  "history": [
+    {
+      "epoch": 1,
+      "training_loss": 1.6316745856223471,
+      "validation_accuracy": 0.7617021276595745
+    },
+    {
+      "epoch": 2,
+      "training_loss": 0.7650371495619639,
+      "validation_accuracy": 0.8153368794326241
+    },
+    {
+      "epoch": 3,
+      "training_loss": 0.616447211908862,
+      "validation_accuracy": 0.8318262411347518
+    },
+    {
+      "epoch": 4,
+      "training_loss": 0.5528816014974487,
+      "validation_accuracy": 0.8430851063829787
+    },
+    {
+      "epoch": 5,
+      "training_loss": 0.5165353361737361,
+      "validation_accuracy": 0.8544326241134752
+    },
+    {
+      "epoch": 6,
+      "training_loss": 0.49044707794655396,
+      "validation_accuracy": 0.8578900709219858
+    }
+  ],
+  "characters": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    "A",
+    "B",
+    "C",
+    "D",
+    "E",
+    "F",
+    "G",
+    "H",
+    "I",
+    "J",
+    "K",
+    "L",
+    "M",
+    "N",
+    "O",
+    "P",
+    "Q",
+    "R",
+    "S",
+    "T",
+    "U",
+    "V",
+    "W",
+    "X",
+    "Y",
+    "Z",
+    "a",
+    "b",
+    "d",
+    "e",
+    "f",
+    "g",
+    "h",
+    "n",
+    "q",
+    "r",
+    "t"
+  ],
+  "sha256": "ea3193f37cd026a70d55b6ffcc576748e8f73aeaad643cd98e7d5a8d994167a0",
+  "corpus": "EMNIST Balanced",
+  "archive_sha256": "909a2a39c5e86bdd7662425e9b9c4a49bb582bf8d0edad427f3c3a9d0c6f7259",
+  "archive_source": "https://rds.westernsydney.edu.au/Institutes/MARCS/BENS/EMNIST/emnist-gzip.zip",
+  "source": "https://www.nist.gov/itl/products-and-services/emnist-dataset",
+  "purpose": "public-character development experiment, not shipped payroll recognition",
+  "data_sha256": {
+    "emnist-balanced-test-images-idx3-ubyte.gz": "117fc12b015e37ea98bfb2cbba3f77c3782c056cdbd219b87abfc8661d7135db",
+    "emnist-balanced-test-labels-idx1-ubyte.gz": "a67cac948379b67270b9a4d0a01c8ec661598accf2f2b1964340b7c83cb175cd",
+    "emnist-balanced-train-images-idx3-ubyte.gz": "74295e75e4e9fa2c102147460ee7eb763653d5132d883a84fb88932bfb8d2db4",
+    "emnist-balanced-train-labels-idx1-ubyte.gz": "b46d41e5156a0a8aaaa4d18979fdd1588850fa8571018acffd5d93b325a7d6ed"
+  }
+}

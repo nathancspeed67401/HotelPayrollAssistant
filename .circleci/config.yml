@@ -16,8 +16,13 @@ jobs:
             if (!(Test-Path $python)) { throw 'Python 3.12 not found after installation' }
             & $python -m pip install --upgrade pip
             if ($LASTEXITCODE -ne 0) { throw 'pip upgrade failed' }
-            & $python -m pip install -r requirements.txt pyinstaller pytest
+            & $python -m pip install -r requirements.txt -r requirements-dev.txt pyinstaller
             if ($LASTEXITCODE -ne 0) { throw 'Python dependency installation failed' }
+      - run:
+          name: Fetch and verify pinned handwriting model
+          command: |
+            & 'C:\Python312\python.exe' scripts\fetch_ocr_model.py
+            if ($LASTEXITCODE -ne 0) { throw 'Handwriting model download or integrity check failed' }
       - run:
           name: Execute automated tests
           command: |
@@ -27,7 +32,7 @@ jobs:
       - run:
           name: Bundle application with OCR
           command: |
-            & 'C:\Python312\Scripts\pyinstaller.exe' --noconfirm --clean --onedir --windowed --collect-all sklearn --hidden-import sklearn.svm._classes --name 'Hotel Payroll Assistant' --add-data 'app/assets;app/assets' main.py
+            & 'C:\Python312\Scripts\pyinstaller.exe' --noconfirm --clean --onedir --windowed --collect-all sklearn --collect-all onnxruntime --hidden-import sklearn.svm._classes --name 'Hotel Payroll Assistant' --add-data 'app/assets;app/assets' main.py
             if ($LASTEXITCODE -ne 0) { throw 'PyInstaller failed' }
             $internal = (Resolve-Path 'dist\Hotel Payroll Assistant\_internal').Path
             $ocrSource = 'C:\Program Files\Tesseract-OCR'
@@ -60,7 +65,16 @@ jobs:
               Stop-Process -Id $gui.Id -Force
               throw 'Installed GUI self-test timed out'
             }
-            if ($gui.ExitCode -ne 0) { throw 'Installed GUI self-test failed' }
+            if ($gui.ExitCode -ne 0) {
+              Get-Content (Join-Path $env:TEMP 'HotelPayrollAssistant_gui_test_error.txt') -ErrorAction SilentlyContinue
+              throw 'Installed import/review/approve/restart/export workflow failed'
+            }
+            'PASS: installed photo and PDF batch import, registered OCR, manual correction, all-row review, approval, Excel export, restart recovery, duplicate prevention, edited-data export block' | Out-File -Encoding utf8 test-results/installed-workflow.txt
+            $uninstaller=Join-Path $destination 'unins000.exe'
+            if (!(Test-Path $uninstaller)) { throw 'Uninstaller missing' }
+            $removed=Start-Process $uninstaller -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART') -Wait -PassThru
+            if ($removed.ExitCode -ne 0 -or (Test-Path $exe)) { throw 'Uninstall did not remove installed program' }
+            'PASS: silent uninstall removed installed executable' | Out-File -Encoding utf8 test-results/uninstall.txt
             & 'C:\Python312\python.exe' -m pip freeze | Out-File -Encoding utf8 test-results/dependencies.txt
             git rev-parse HEAD | Out-File -Encoding utf8 test-results/source-commit.txt
             Get-FileHash $installer -Algorithm SHA256 | Format-List | Out-File -Encoding utf8 test-results/installer-sha256.txt

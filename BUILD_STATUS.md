@@ -1,27 +1,26 @@
-# Build status — October 28, 2026
+# Windows build status · November 7, 2026
 
-Windows build provider: CircleCI. GitHub Actions is intentionally not included.
+**v0.5.2 engineering candidate. Use fictional timesheets for acceptance.**
 
-The source was recovered from the saved v0.3 research ZIP after workspace cleanup.
-The correction autosave, approval invalidation, strict fourteen-row review checks,
-split-shift overlap detection and same-batch duplicate filtering were restored.
-The bundled SVC model was trained with scikit-learn 1.8.0; that version is pinned.
+| Windows Server 2022 job | Exact source | Status |
+| --- | --- | --- |
+| [CircleCI #27](https://circleci.com/gh/nathancspeed67401/HotelPayrollAssistant/27) | [`a9b641417350c621858ef07ab748a28d38df7ac0`](https://github.com/nathancspeed67401/HotelPayrollAssistant/commit/a9b641417350c621858ef07ab748a28d38df7ac0) | Passed |
+| [CircleCI #26](https://circleci.com/gh/nathancspeed67401/HotelPayrollAssistant/26) | [`bb467ffb7cbe951899823bbf535a2ca2f70b99bd`](https://github.com/nathancspeed67401/HotelPayrollAssistant/commit/bb467ffb7cbe951899823bbf535a2ca2f70b99bd) | Passed |
+| [CircleCI #25](https://circleci.com/gh/nathancspeed67401/HotelPayrollAssistant/25) | `21e666954f43eef2b340235f6d1bf384d0529910` | Passed |
 
-Current local verification: 39 tests passed, 3 desktop tests skipped because this
-Linux session has no display. The application dependency/export self-test passed.
-CircleCI runs those desktop tests on Windows, creates an Inno Setup installer,
-silently installs it, exercises the installed OCR/model/calculation/export path,
-and opens and closes the installed GUI. Verification artifacts record the commit,
-dependency versions and installer SHA-256.
+The job compiles the Inno Setup executable, installs it, exercises real offline
+recognition and the desktop workflow with fictional photo and PDF inputs,
+and uninstalls it. The candidate passed 122 local tests with external
+network access blocked and the display set to 1366×768.
 
-The CircleCI project must be connected to this repository and its workflow must
-finish successfully before an installer can be described as tested. No successful
-Windows build has been verified yet.
+Open the candidate job's **Artifacts** tab with an authenticated CircleCI
+account that can access this payroll project. The configured installer is
+`Windows-Setup/HotelPayrollAssistant_Setup.exe`. The corresponding checksum and
+commit manifests are under `Verification`.
 
-Release remains blocked by handwriting accuracy. The shipped recognizer is the
-experimental v0.3 model. Its historical composite benchmark was 34/66 exact time
-entries; the saved report documents that the original employee form yielded no
-usable punches. Later TrOCR/RapidOCR experiments were not saved in the recovery
-ZIP and are not part of this build. Every day must still be reviewed manually.
+The session could verify the job status through GitHub. The private artifact
+listing was inaccessible, so the setup bytes and SHA-256 are unverified
+independently. Windows 10/11 field testing and Lynnette's acceptance remain open.
 
-Do not distribute this engineering build as a completed payroll release.
+See [Release status](RELEASE_STATUS.md) for the test workflow and
+[Development progress](DEVELOPMENT_PROGRESS.md) for the remaining gates.

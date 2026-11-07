@@ -39,3 +39,15 @@ def test_no_biweekly_overtime_averaging():
 def test_period_starts_saturday():
     s = Sheet('x','x','A','2026-10-25')
     assert 'Pay period must begin on Saturday' in validate_sheet(s)
+
+
+def test_minute_precision_across_weeks_and_weekly_overtime():
+    s = Sheet('x', 'sha', 'Test Employee', '2026-10-24')
+    for first in (0, 7):
+        for row in range(first, first + 4):
+            s.days[row] = ShiftDay('8A', '4P')
+        s.days[first + 6] = ShiftDay('11P', '7:01A')
+    assert summarize(s) == {
+        'week1': 40.02, 'week2': 40.02, 'total': 80.03,
+        'regular': 80.0, 'overtime': 0.03,
+    }

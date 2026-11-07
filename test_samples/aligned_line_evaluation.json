@@ -1,0 +1,144 @@
+{
+  "totals": {
+    "correct": 128,
+    "missed": 0,
+    "wrong": 0,
+    "blank": 431,
+    "false_positive": 0,
+    "ambiguous": 1,
+    "ambiguous_auto_filled": 0
+  },
+  "cases": [
+    {
+      "case": 1,
+      "counts": {
+        "correct": 20,
+        "missed": 0,
+        "wrong": 0,
+        "blank": 36,
+        "false_positive": 0,
+        "ambiguous": 0,
+        "ambiguous_auto_filled": 0
+      },
+      "mismatches": []
+    },
+    {
+      "case": 2,
+      "counts": {
+        "correct": 16,
+        "missed": 0,
+        "wrong": 0,
+        "blank": 40,
+        "false_positive": 0,
+        "ambiguous": 0,
+        "ambiguous_auto_filled": 0
+      },
+      "mismatches": []
+    },
+    {
+      "case": 3,
+      "counts": {
+        "correct": 32,
+        "missed": 0,
+        "wrong": 0,
+        "blank": 24,
+        "false_positive": 0,
+        "ambiguous": 0,
+        "ambiguous_auto_filled": 0
+      },
+      "mismatches": []
+    },
+    {
+      "case": 4,
+      "counts": {
+        "correct": 22,
+        "missed": 0,
+        "wrong": 0,
+        "blank": 34,
+        "false_positive": 0,
+        "ambiguous": 0,
+        "ambiguous_auto_filled": 0
+      },
+      "mismatches": []
+    },
+    {
+      "case": 5,
+      "counts": {
+        "correct": 10,
+        "missed": 0,
+        "wrong": 0,
+        "blank": 46,
+        "false_positive": 0,
+        "ambiguous": 0,
+        "ambiguous_auto_filled": 0
+      },
+      "mismatches": []
+    },
+    {
+      "case": 6,
+      "counts": {
+        "correct": 12,
+        "missed": 0,
+        "wrong": 0,
+        "blank": 44,
+        "false_positive": 0,
+        "ambiguous": 0,
+        "ambiguous_auto_filled": 0
+      },
+      "mismatches": []
+    },
+    {
+      "case": 7,
+      "counts": {
+        "correct": 3,
+        "missed": 0,
+        "wrong": 0,
+        "blank": 53,
+        "false_positive": 0,
+        "ambiguous": 0,
+        "ambiguous_auto_filled": 0
+      },
+      "mismatches": []
+    },
+    {
+      "case": 8,
+      "counts": {
+        "correct": 3,
+        "missed": 0,
+        "wrong": 0,
+        "blank": 52,
+        "false_positive": 0,
+        "ambiguous": 1,
+        "ambiguous_auto_filled": 0
+      },
+      "mismatches": []
+    },
+    {
+      "case": 9,
+      "counts": {
+        "correct": 10,
+        "missed": 0,
+        "wrong": 0,
+        "blank": 46,
+        "false_positive": 0,
+        "ambiguous": 0,
+        "ambiguous_auto_filled": 0
+      },
+      "mismatches": []
+    },
+    {
+      "case": 10,
+      "counts": {
+        "correct": 0,
+        "missed": 0,
+        "wrong": 0,
+        "blank": 56,
+        "false_positive": 0,
+        "ambiguous": 0,
+        "ambiguous_auto_filled": 0
+      },
+      "mismatches": []
+    }
+  ],
+  "elapsed_seconds": 43.125
+}

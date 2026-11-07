@@ -9,3 +9,10 @@ installer/output/
 test-results/
 current_session.json
 scans/
+app/assets/*.onnx
+app/assets/*.part
+HotelPayrollAssistant_*_error.txt
+private-data/
+pending-imports/
+previous-payrolls/
+*.json.bak

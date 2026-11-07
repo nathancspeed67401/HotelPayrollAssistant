@@ -17,6 +17,10 @@ def self_test() -> int:
     from app.handwriting import _model, recognize_time
     assert len(_model().classes_) >= 12
     assert recognize_time(Image.new('RGB',(100,30),'white'))[0] == ''
+    # Exercise the real bundled ONNX graph and dictionary, without networking.
+    from app.line_ocr import get_recognizer
+    readings = get_recognizer().recognize([Image.new('RGB', (120, 35), 'white')])
+    assert len(readings) == 1 and len(readings[0]) == 4
     with tempfile.TemporaryDirectory(prefix='hotel-payroll-test-') as location:
         dest = Path(location)
         img = Image.new('RGB', (380, 95), 'white')
@@ -28,6 +32,9 @@ def self_test() -> int:
         sheet.days[0] = ShiftDay('11P', '7A')
         sheet.days[7] = ShiftDay('12A', '8A')
         img.save(dest / 'sample.png')
+        from app.review import mark_row_reviewed,mark_sheet_approved
+        for row in range(14):mark_row_reviewed(sheet,row)
+        mark_sheet_approved(sheet)
         assert summarize(sheet)['total'] == 16.0
         output = dest / 'payroll.xlsx'
         export_excel(str(output), [sheet])
@@ -37,11 +44,14 @@ def self_test() -> int:
 
 if __name__ == '__main__':
     if '--gui-self-test' in sys.argv:
-        from app.ui import PayrollApp
-        app = PayrollApp()
-        app.update()
-        app.destroy()
-        sys.exit(0)
+        from app.smoke import run_workflow_smoke
+        try:
+            sys.exit(run_workflow_smoke())
+        except Exception:
+            import traceback,os
+            from pathlib import Path
+            (Path(os.getenv('TEMP') or '.')/'HotelPayrollAssistant_gui_test_error.txt').write_text(traceback.format_exc())
+            sys.exit(1)
     if '--self-test' in sys.argv:
         try:
             sys.exit(self_test())

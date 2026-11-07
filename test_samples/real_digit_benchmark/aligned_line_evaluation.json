@@ -1,0 +1,308 @@
+{
+  "totals": {
+    "correct": 36,
+    "missed": 30,
+    "wrong": 0,
+    "blank": 270,
+    "false_positive": 0,
+    "ambiguous": 0,
+    "ambiguous_auto_filled": 0
+  },
+  "cases": [
+    {
+      "case": 1,
+      "counts": {
+        "correct": 10,
+        "missed": 2,
+        "wrong": 0,
+        "blank": 44,
+        "false_positive": 0,
+        "ambiguous": 0,
+        "ambiguous_auto_filled": 0
+      },
+      "mismatches": [
+        {
+          "row": 2,
+          "field": "in1",
+          "expected": "8A",
+          "actual": "",
+          "raw": "8A / 9A"
+        },
+        {
+          "row": 5,
+          "field": "in1",
+          "expected": "8A",
+          "actual": "",
+          "raw": "9A / 8A"
+        }
+      ]
+    },
+    {
+      "case": 2,
+      "counts": {
+        "correct": 4,
+        "missed": 8,
+        "wrong": 0,
+        "blank": 44,
+        "false_positive": 0,
+        "ambiguous": 0,
+        "ambiguous_auto_filled": 0
+      },
+      "mismatches": [
+        {
+          "row": 1,
+          "field": "in1",
+          "expected": "11P",
+          "actual": "",
+          "raw": "11P"
+        },
+        {
+          "row": 2,
+          "field": "in1",
+          "expected": "12A",
+          "actual": "",
+          "raw": "12A / 1P"
+        },
+        {
+          "row": 2,
+          "field": "out1",
+          "expected": "8A",
+          "actual": "",
+          "raw": "A / YA / 8A / IA / 1A"
+        },
+        {
+          "row": 3,
+          "field": "out1",
+          "expected": "8A",
+          "actual": "",
+          "raw": "PA / 1A / IA"
+        },
+        {
+          "row": 8,
+          "field": "in1",
+          "expected": "12A",
+          "actual": "",
+          "raw": "11A / 12A / 124 / 1P"
+        },
+        {
+          "row": 8,
+          "field": "out1",
+          "expected": "8A",
+          "actual": "",
+          "raw": "PA / 8A / IA / 1A"
+        },
+        {
+          "row": 9,
+          "field": "in1",
+          "expected": "11P",
+          "actual": "",
+          "raw": "11P / IIP"
+        },
+        {
+          "row": 9,
+          "field": "out1",
+          "expected": "7A",
+          "actual": "",
+          "raw": "A / +A / 7A / \u2193A"
+        }
+      ]
+    },
+    {
+      "case": 3,
+      "counts": {
+        "correct": 6,
+        "missed": 6,
+        "wrong": 0,
+        "blank": 44,
+        "false_positive": 0,
+        "ambiguous": 0,
+        "ambiguous_auto_filled": 0
+      },
+      "mismatches": [
+        {
+          "row": 1,
+          "field": "out1",
+          "expected": "5:30P",
+          "actual": "",
+          "raw": "5:30P / 5:10P"
+        },
+        {
+          "row": 2,
+          "field": "out1",
+          "expected": "9:15A",
+          "actual": "",
+          "raw": "9:15A / 3:15A / 915A"
+        },
+        {
+          "row": 4,
+          "field": "in1",
+          "expected": "2:30P",
+          "actual": "",
+          "raw": "2:30P / 2:50P"
+        },
+        {
+          "row": 4,
+          "field": "out1",
+          "expected": "11P",
+          "actual": "",
+          "raw": "11P"
+        },
+        {
+          "row": 7,
+          "field": "in1",
+          "expected": "8A",
+          "actual": "",
+          "raw": "8A / 1A"
+        },
+        {
+          "row": 7,
+          "field": "out2",
+          "expected": "5P",
+          "actual": "",
+          "raw": "SP / 5P"
+        }
+      ]
+    },
+    {
+      "case": 4,
+      "counts": {
+        "correct": 5,
+        "missed": 5,
+        "wrong": 0,
+        "blank": 46,
+        "false_positive": 0,
+        "ambiguous": 0,
+        "ambiguous_auto_filled": 0
+      },
+      "mismatches": [
+        {
+          "row": 2,
+          "field": "in1",
+          "expected": "9P",
+          "actual": "",
+          "raw": "9P / 3P"
+        },
+        {
+          "row": 2,
+          "field": "out1",
+          "expected": "5A",
+          "actual": "",
+          "raw": "SA / 5A"
+        },
+        {
+          "row": 5,
+          "field": "in1",
+          "expected": "10P",
+          "actual": "",
+          "raw": "10P / 1OP / IOP"
+        },
+        {
+          "row": 11,
+          "field": "in1",
+          "expected": "12A",
+          "actual": "",
+          "raw": "12A / 9P"
+        },
+        {
+          "row": 11,
+          "field": "out1",
+          "expected": "8A",
+          "actual": "",
+          "raw": "BA / 8A / 1A"
+        }
+      ]
+    },
+    {
+      "case": 5,
+      "counts": {
+        "correct": 9,
+        "missed": 7,
+        "wrong": 0,
+        "blank": 40,
+        "false_positive": 0,
+        "ambiguous": 0,
+        "ambiguous_auto_filled": 0
+      },
+      "mismatches": [
+        {
+          "row": 0,
+          "field": "out1",
+          "expected": "11:30A",
+          "actual": "",
+          "raw": "11:30A / 11:10A"
+        },
+        {
+          "row": 2,
+          "field": "in1",
+          "expected": "8A",
+          "actual": "",
+          "raw": "8A / 1A / IA"
+        },
+        {
+          "row": 2,
+          "field": "out1",
+          "expected": "12P",
+          "actual": "",
+          "raw": "12P / 11P"
+        },
+        {
+          "row": 3,
+          "field": "in1",
+          "expected": "7A",
+          "actual": "",
+          "raw": "A / FA / 7A / XA"
+        },
+        {
+          "row": 3,
+          "field": "out1",
+          "expected": "11A",
+          "actual": "",
+          "raw": "11A / 1lA"
+        },
+        {
+          "row": 9,
+          "field": "in1",
+          "expected": "10A",
+          "actual": "",
+          "raw": "IOA / 10A / 1OA"
+        },
+        {
+          "row": 9,
+          "field": "in2",
+          "expected": "3P",
+          "actual": "",
+          "raw": "3P / 5P"
+        }
+      ]
+    },
+    {
+      "case": 6,
+      "counts": {
+        "correct": 2,
+        "missed": 2,
+        "wrong": 0,
+        "blank": 52,
+        "false_positive": 0,
+        "ambiguous": 0,
+        "ambiguous_auto_filled": 0
+      },
+      "mismatches": [
+        {
+          "row": 3,
+          "field": "in1",
+          "expected": "11:45P",
+          "actual": "",
+          "raw": "11:45P / 145P / 11 45P / 18 45P"
+        },
+        {
+          "row": 10,
+          "field": "in1",
+          "expected": "12P",
+          "actual": "",
+          "raw": "12P / 12 / 12F / 1P"
+        }
+      ]
+    }
+  ],
+  "elapsed_seconds": 24.258
+}

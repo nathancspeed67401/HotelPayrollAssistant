@@ -120,3 +120,40 @@ def test_unregistered_page_cannot_populate_guessed_fixed_boxes(tmp_path):
     sheet=scan_page(str(path),page)
     assert all(not getattr(day,k) for day in sheet.days for k in ('in1','out1','in2','out2'))
     assert any('aligned' in w for w in sheet.scan_warnings)
+
+
+def test_verified_two_pair_import_skips_single_pair_registration(monkeypatch):
+    from pathlib import Path
+    from app.ocr import load_pages, scan_page
+
+    def unexpected_registration(*args):
+        pytest.fail('A verified legacy form should bypass single-pair registration')
+
+    monkeypatch.setattr('app.photo_form.scan_this_form', unexpected_registration)
+    source = Path(__file__).resolve().parents[1] / 'test_samples' / '03_SplitShifts.png'
+    sheet = scan_page(str(source), load_pages(str(source))[0])
+    day = sheet.days[1]
+    assert len(sheet.review_boxes) == 14
+    assert (day.in1, day.out1, day.in2, day.out2) == ('8:00A', '12:00P', '1:00P', '5:00P')
+
+
+def test_legacy_geometry_with_one_pair_of_headings_cannot_prefill(tmp_path):
+    from pathlib import Path
+    from PIL import ImageDraw
+    from app.core import TIME_FIELDS
+    from app.form_geometry import find_form_grid
+    from app.ocr import load_pages, scan_page
+
+    legacy = Path(__file__).resolve().parents[1] / 'test_samples' / '03_SplitShifts.png'
+    page = load_pages(str(legacy))[0]
+    draw = ImageDraw.Draw(page)
+    # Retain the grid and the clock ink. Erase the second pair of printed
+    # headings only in week two, so the first week alone cannot select legacy.
+    for left, right in ((480, 605), (609, 743)):
+        draw.rectangle((left, 642, right, 671), fill=(251, 251, 248))
+    assert find_form_grid(page) is not None
+    source = tmp_path / 'unverified.png'
+    page.save(source)
+    sheet = scan_page(str(source), page)
+    assert not sheet.review_boxes
+    assert all(not getattr(day, field) for day in sheet.days for field in TIME_FIELDS)

@@ -80,19 +80,27 @@ def choose_clock(readings: list[Reading]) -> Decision:
         return Decision('',raw,'unreadable-or-invalid')
     key,candidates = next(iter(groups.items()))
     strong = any(r.confidence >= .97 and r.minimum >= .90 for r in candidates)
-    if not strong and len({r.source for r in candidates}) < 2:
+    # Preprocessing can erase or reshape the same stroke in several views.
+    # Require the native crop to support the complete reading before offering it.
+    native = next((r for r in candidates if r.source == 'raw'), None)
+    if native is None or (not strong and len({r.source for r in candidates}) < 2):
         return Decision('',raw,'uncertain-reading')
-    best = max(candidates,key=lambda r:r.confidence)
-    literal = re.sub(r'\s+','',best.text).upper()
+    literal = re.sub(r'\s+','',native.text).upper()
     # On this handwritten form, a leading zero does not establish a 24h
     # convention. Only 00/13-23 or an explicit A/P can resolve the half-day.
     hour = int(key.split(':')[0])
-    explicit = bool(re.fullmatch(r'\d{1,2}:[0-5]\d[AP](?:M)?',literal))
+    explicit = bool(re.fullmatch(r'\d{1,2}:?[0-5]\d[AP](?:M)?',literal))
+    if explicit and ':' not in literal:
+        # A compact clock must preserve every digit and the suffix across
+        # views. A missing colon leaves less evidence of where minutes begin.
+        complete_views = {r.source for r in candidates if len(re.findall(r'\d', r.text)) >= 3}
+        if len(complete_views) < 3:
+            return Decision('',raw,'uncertain-reading')
     if not explicit and not (hour == 0 or hour >= 13):
-        return Decision('',best.text.strip(),'needs-AM/PM-or-minutes')
+        return Decision('',native.text.strip(),'needs-AM/PM-or-minutes')
     value,error = normalize_time(literal)
     return Decision(display_time(value) if value and not error else '',
-                    best.text.strip(),'suggestion' if value and not error else 'unreadable-or-invalid')
+                    native.text.strip(),'suggestion' if value and not error else 'unreadable-or-invalid')
 
 
 def choose_time(readings: list[Reading]) -> Decision:

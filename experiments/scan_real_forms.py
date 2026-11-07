@@ -27,10 +27,12 @@ def main():
     parser.add_argument('--originals',required=True)
     parser.add_argument('--output',required=True)
     parser.add_argument('--source-sha',required=True)
-    parser.add_argument('--split',choices=['development','holdout','historical-development'],required=True)
+    parser.add_argument('--split',choices=['development','holdout','historical-development','acceptance'],required=True)
     parser.add_argument('--variant',choices=['original','rotate180','dim','jpeg45','perspective'],default='original')
     parser.add_argument('--sheet',action='append',help='Limit a diagnostic run to anonymous sheet IDs')
     args=parser.parse_args()
+    if args.split == 'acceptance' and (args.sheet or args.variant != 'original'):
+        parser.error('Acceptance must scan every original in the acceptance split')
     from experiments.offline_guard import block_network
     block_network()
     from app.ocr import scan_page,load_pages

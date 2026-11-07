@@ -10,7 +10,7 @@ def _literal_key(text):
     return clock, len(re.sub(r'[^0-9]', '', text or '')) >= 3
 
 
-def evaluate_cells(labels, predictions, expected_count):
+def evaluate_cells(labels, predictions, expected_count, *, acceptance_verified=False):
     """Missing predictions count as misses; ambiguous labels never become truth.
 
     Verification metadata is an explicit reviewer attestation, not a substitute
@@ -31,7 +31,8 @@ def evaluate_cells(labels, predictions, expected_count):
         'crossed_out','crossed_out_flagged_for_review','crossed_out_detected_blank',
         'suggestions_on_crossed_out',
         'correct_suggestions','wrong_suggestions','suggestions_on_blanks',
-        'automatic_punches_on_ambiguous')});bins={};verified=True;holdout=True
+        'automatic_punches_on_ambiguous', 'ambiguous_detected_blank')})
+    bins={};verified=True;holdout=True;acceptance=acceptance_verified
     for label in labels:
         key=(label['sheet'],label['row'],label['field'])
         if key in seen:raise ValueError('Duplicate ground-truth cell')
@@ -40,6 +41,7 @@ def evaluate_cells(labels, predictions, expected_count):
         verified &= (label.get('independently_verified') is True and bool(reviewer)
                      and reviewer != label.get('transcriber_id',''))
         holdout &= label.get('split') == 'holdout'
+        acceptance &= label.get('split') == 'acceptance'
         predicted=by_key.get(key,{})
         detected = predicted.get('status')
         failed_registration = detected == 'alignment-failed'
@@ -49,6 +51,7 @@ def evaluate_cells(labels, predictions, expected_count):
         literal=label.get('literal');status=label['status']
         if status in ('ambiguous','unreadable','correction'):
             counts['ambiguous']+=1
+            if detected == 'blank':counts['ambiguous_detected_blank']+=1
             if suggestion:counts['proposals_on_ambiguous']+=1
             if value:counts['automatic_punches_on_ambiguous']+=1
             continue
@@ -118,10 +121,13 @@ def evaluate_cells(labels, predictions, expected_count):
             'exact_eligible_punch_accuracy':eligible_accuracy,
             'exact_eligible_suggestion_accuracy':suggestion_accuracy,
             'complete':complete,'holdout':bool(holdout and complete),
+            'fresh_acceptance':bool(acceptance and complete),
             'confidence_bins':{str(k):dict(v) for k,v in bins.items()},
-            'target_met':bool(complete and verified and holdout and accuracy is not None and accuracy>=.98
+            'target_met':bool(complete and verified and acceptance and accuracy is not None and accuracy>=.98
                               and suggestion_accuracy is not None and suggestion_accuracy>=.98
+                              and not counts['correct_populated_times']
                               and not counts['wrong_populated_times'] and not counts['false_populated_blanks']
                               and not counts['automatic_punches_on_ambiguous']
+                              and not counts['ambiguous_detected_blank'] and not counts['crossed_out_detected_blank']
                               and not counts['wrong_suggestions'] and not counts['suggestions_on_blanks']
                               and not counts['proposals_on_ambiguous'])}

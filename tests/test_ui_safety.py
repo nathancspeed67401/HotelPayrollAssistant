@@ -89,3 +89,19 @@ def test_export_is_blocked_while_selected_forms_are_still_importing(ui,monkeypat
     import app.ui as module
     monkeypatch.setattr(module.filedialog,'asksaveasfilename',lambda **k:pytest.fail('Export dialog opened during import'))
     app.export()
+
+
+def test_time_entry_and_check_button_remain_visible_on_a_small_laptop(ui):
+    app,sheet,_=ui
+    app.minsize(900,600);app.geometry('1060x680');app.update()
+    bottom=app.winfo_rooty()+app.winfo_height()
+    for widget in (app.punch_entries[0],app.punch_entries[1],app.btn_save_day):
+        assert widget.winfo_viewable()
+        assert widget.winfo_rooty()+widget.winfo_height() <= bottom
+
+
+def test_single_pair_form_shows_only_its_two_clock_fields(ui):
+    app,sheet,_=ui
+    sheet.form_type='comfort_suites_single_pair';app.show_sheet(0);app.update()
+    assert not app.punch_entries[2].winfo_viewable()
+    assert app.tree['displaycolumns']==('day','in1','out1','hours','review')

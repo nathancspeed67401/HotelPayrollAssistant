@@ -32,8 +32,10 @@ class PayrollApp(tk.Tk):
             self.destroy()
             raise
         self.title('Hotel Payroll Assistant')
-        self.geometry('1240x800')
-        self.minsize(1060, 680)
+        width=min(1240,max(900,self.winfo_screenwidth()-40))
+        height=min(800,max(600,self.winfo_screenheight()-80))
+        self.geometry(f'{width}x{height}')
+        self.minsize(min(1060,width),min(680,height))
         self.configure(bg='#eef3f8')
         self.sheets: list[Sheet] = []
         self.active_idx: int | None = None
@@ -110,9 +112,8 @@ class PayrollApp(tk.Tk):
         ttk.Entry(fields, textvariable=self.date_var, width=30, font=('Segoe UI', 11)).grid(row=1, column=1, sticky='ew', padx=(12,0), pady=(3,0))
         fields.columnconfigure(0, weight=1)
         fields.columnconfigure(1, weight=1)
-        ttk.Label(left, text='Click a day to edit its clock times below', style='Head.TLabel').pack(anchor='w', pady=(4,5))
+        ttk.Label(left, text='Select a day to review and edit its clock times', style='Head.TLabel').pack(anchor='w', pady=(4,5))
         table_frame = ttk.Frame(left)
-        table_frame.pack(fill='both', expand=True)
         cols = ('day','in1','out1','in2','out2','hours','review')
         self.tree = ttk.Treeview(table_frame, columns=cols, show='headings', selectmode='browse', height=14)
         for name, label, width in [('day','DAY',97),('in1','IN 1',77),('out1','OUT 1',77),('in2','IN 2',77),('out2','OUT 2',77),('hours','HOURS',78),('review','CHECK',100)]:
@@ -127,22 +128,30 @@ class PayrollApp(tk.Tk):
         self.tree.config(yscrollcommand=tscroll.set)
         tscroll.pack(side='right', fill='y')
         edit = ttk.LabelFrame(left, text='Edit selected day — enter 12A, 9:15P, 2:30A, etc.', padding=10)
-        edit.pack(fill='x', pady=(9, 4))
         self.punch_vars = [tk.StringVar() for _ in range(4)]
         self.blank_vars = [tk.BooleanVar() for _ in range(4)]
         self.punch_entries = []
+        self.punch_labels = []
+        self.blank_checks = []
         for c, label in enumerate(['Time In', 'Time Out', 'Second In', 'Second Out']):
-            ttk.Label(edit, text=label, style='Body.TLabel').grid(row=0, column=c, padx=4, sticky='w')
+            heading=ttk.Label(edit,text=label,style='Body.TLabel')
+            heading.grid(row=0,column=c,padx=4,sticky='w')
+            self.punch_labels.append(heading)
             ent = ttk.Entry(edit, textvariable=self.punch_vars[c], width=13, font=('Segoe UI', 11))
             ent.grid(row=1, column=c, sticky='ew', padx=4, pady=4)
             ent.bind('<Return>', lambda _evt: self.save_day())
             self.punch_entries.append(ent)
-            ttk.Checkbutton(edit,text='Blank / crossed out',variable=self.blank_vars[c],
-                            command=self._blank_changed).grid(row=2,column=c,sticky='w')
+            check=ttk.Checkbutton(edit,text='Blank / crossed out',variable=self.blank_vars[c],command=self._blank_changed)
+            check.grid(row=2,column=c,sticky='w');self.blank_checks.append(check)
             edit.columnconfigure(c, weight=1)
-        ttk.Button(edit, text='✓ Checked: Save & Next', command=self.save_day).grid(row=1, column=4, padx=(10,0), sticky='ew')
+        self.btn_save_day=ttk.Button(edit,text='✓ Checked: Save & Next',command=self.save_day)
+        self.btn_save_day.grid(row=1,column=4,padx=(10,0),sticky='ew')
         self.totals = tk.StringVar(value='Week 1: —    Week 2: —    Total: —')
-        ttk.Label(left, textvariable=self.totals, style='Head.TLabel').pack(anchor='w', pady=(5,0))
+        ttk.Label(left,textvariable=self.totals,style='Head.TLabel').pack(side='bottom',anchor='w',pady=(5,0))
+        edit.pack(side='bottom',fill='x',pady=(9,4))
+        # Reserve the wage-entry controls first. The scrollable row table gets
+        # the remaining height even on ordinary 768-pixel laptop displays.
+        table_frame.pack(fill='both',expand=True)
         # Right: full original photo, zoomed selected row, and notes.
         ttk.Label(right, text='Original timesheet — compare every entry', style='Head.TLabel').pack(anchor='w', pady=(0,6))
         self.preview_frame = ttk.Frame(right)
@@ -216,9 +225,9 @@ class PayrollApp(tk.Tk):
     def refresh_list(self):
         selected = self.active_idx
         self.sheet_list.delete(0, 'end')
-        for s in self.sheets:
+        for index,s in enumerate(self.sheets):
             marker = '✓ Approved' if s.approved else f'● {sum(s.reviewed_days)}/14 checked'
-            self.sheet_list.insert('end', f'{marker}   {s.employee or Path(s.source).stem}   ({Path(s.source.split("#")[0]).name})')
+            self.sheet_list.insert('end',f'{marker}   {s.employee or f"Timesheet {index+1}"}   {s.period_start or "Enter payroll period"}')
         if selected is not None and selected < len(self.sheets):
             self.sheet_list.selection_set(selected)
 
@@ -339,6 +348,13 @@ class PayrollApp(tk.Tk):
         self._editing_day = None
         self.active_idx = index
         s = self.sheets[index]
+        single=s.form_type == FORM_ID
+        self.tree.config(displaycolumns=('day','in1','out1','hours','review') if single else ('day','in1','out1','in2','out2','hours','review'))
+        for column in (2,3):
+            for widget in (self.punch_entries[column],self.punch_labels[column],self.blank_checks[column]):
+                if single:widget.grid_remove()
+                else:widget.grid()
+            self.punch_entries[column].master.columnconfigure(column,weight=0 if single else 1)
         for entry in self.punch_entries[2:]:
             entry.config(state='disabled' if s.form_type == FORM_ID else 'normal')
         self._loading_metadata = True
@@ -355,6 +371,8 @@ class PayrollApp(tk.Tk):
             self.current_image = load_pages(filename)[int(page)-1]
         except Exception:
             self.current_image = None
+            self.img_label.config(image='',text='Source photo could not be opened')
+            self.row_preview.config(image='',text='No source row available')
             self.note_var.set('Original photo no longer found. Reimport the source before approving the timesheet.')
         self.refresh_days()
         self.update_preview()

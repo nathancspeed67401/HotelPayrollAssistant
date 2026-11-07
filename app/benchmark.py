@@ -15,7 +15,11 @@ def evaluate_cells(labels, predictions, expected_count):
         key=(item['sheet'],item['row'],item['field'])
         if key in by_key:raise ValueError('Duplicate prediction cell')
         by_key[key]=item
-    seen=set();counts=Counter();bins={};verified=True;holdout=True
+    seen=set();counts=Counter({key:0 for key in (
+        'written','blank','ambiguous','exact_transcriptions','missed_transcriptions',
+        'wrong_raw_clock_readings','unreadable_transcriptions','false_blank_detections',
+        'correct_populated_times','wrong_populated_times','false_populated_blanks',
+        'raw_clock_on_blank','proposals_on_ambiguous')});bins={};verified=True;holdout=True
     for label in labels:
         key=(label['sheet'],label['row'],label['field'])
         if key in seen:raise ValueError('Duplicate ground-truth cell')
@@ -41,6 +45,8 @@ def evaluate_cells(labels, predictions, expected_count):
         counts['written']+=1
         correct=clock_key(raw)==clock_key(literal)
         counts['exact_transcriptions']+=correct
+        if raw and not clock_key(raw):counts['unreadable_transcriptions']+=1
+        if clock_key(raw) and not correct:counts['wrong_raw_clock_readings']+=1
         if not raw:counts['missed_transcriptions']+=1
         if predicted.get('status')=='blank':counts['false_blank_detections']+=1
         if value:

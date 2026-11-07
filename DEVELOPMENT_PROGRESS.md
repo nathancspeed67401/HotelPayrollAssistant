@@ -77,6 +77,39 @@ cells, counts missing predictions as misses, separates ambiguous/blank errors,
 tracks confidence bins, and prevents incomplete, unreviewed or development-only
 results from satisfying the 98% target. The independent 98% target is **unmet**.
 
+## Frozen reserved-sheet result
+
+The recognizer and registration code were frozen in `f25938ab3520b501c28f9b3b3e2ce4bae799a56a`
+before viewing this split's punch labels. The actual importer ran offline on all
+four reserved originals. Two registered and two abstained at registration; the
+failed sheets count against accuracy rather than being discarded.
+
+| Measure | Observed result |
+| --- | ---: |
+| Visually transcribed cells | 112 |
+| Readable written values | 65 |
+| Blank or struck-out cells | 42 |
+| Ambiguous/corrected cells | 5 |
+| Exact raw clock transcriptions | 18 / 65 (27.7%) |
+| No raw reading | 28 |
+| Wrong formatted raw reading / other invalid raw text | 1 / 18 |
+| Correct populated time suggestions | 4 / 65 (6.2%) |
+| Wrong populated times / filled blanks | 0 / 0 observed |
+
+All labels are provisional, with no independent reviewer. Some readable clock
+numbers lack AM/PM and cannot authorize a payroll time. Among 30 predictions
+with nominal confidence at least 0.9, only 17 matched the initial labels. This
+is direct evidence against treating the model's score as verified accuracy.
+Seven sheets now have 196 initial labels. All 19 original identities are pinned
+by SHA-256, and the other 12 still require transcription. The private checkpoint
+preserves these labels and measured counts outside the repository.
+
+`experiments/scan_real_forms.py` now reproduces private pipeline runs, verifies
+original file hashes and supports rotation, dim lighting, JPEG compression and
+perspective diagnostics. Score each variant independently with
+`experiments/evaluate_real_forms.py`. No payroll images or per-cell results
+belong in Git or CI artifacts.
+
 ## Automated verification
 
 - PR 2 baseline: **63 passed, 3 GUI tests skipped** before integration.
@@ -89,8 +122,14 @@ results from satisfying the 98% target. The independent 98% target is **unmet**.
 - Actual ONNX/Tesseract/calculation/export self-test passed with network syscalls
   blocked. The synthetic desktop import/review/approve/export/restart workflow
   passed locally. Private employee sheets were not used in CI.
-- The final CI run must provide fresh full-tree results; prior passing reports
-  do not substitute for the final source check.
+- The committed `f25938a` candidate passed **106/106** local tests, including
+  the desktop workflow on a virtual display. Inspection then found the row
+  table could crowd the editor out at laptop window heights. The editor now
+  reserves room before the scrollable table. Single-pair forms show only two
+  inputs, and an inaccessible source clears the previous image from view.
+- The revised candidate passed **108/108** local tests, with no skips, on a
+  real virtual desktop. The focused archive/export and scoring checks also
+  passed **27/27**. Windows verification remains separate.
 
 ## Windows installer
 
@@ -103,9 +142,15 @@ duplicate prevention and export blocking after edits. CI also silently uninstall
 and checks that the executable is removed. Verification text, source SHA,
 dependencies, installer SHA-256 and setup are configured as artifacts.
 
-Historical PR 3 source had a successful GitHub-reported CircleCI job 23; this is
-not validation of the new source. Fresh candidate build status and artifact
-retrieval are pending. No new installer is declared production-ready.
+Historical PR 3 source passed CircleCI job 23. The new candidate's
+[Windows job 24](https://circleci.com/gh/nathancspeed67401/HotelPayrollAssistant/24)
+reported failure on GitHub. The private job logs and artifact listing were
+not accessible here, so its exact failing step is unconfirmed. The follow-up
+corrects a concrete Windows compatibility issue: flush the temporary archive
+and workbook with writable handles, as required by
+[Windows file flushing](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-flushfilebuffers).
+The next job verifies that change and the visible editor controls. No new
+installer has been retrieved or declared production-ready.
 
 ## Remaining release gates
 

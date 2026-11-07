@@ -39,7 +39,7 @@ def export_excel(path: str, sheets: list[Sheet]) -> None:
     handle.close()
     try:
         _write_workbook(str(temporary),sheets,first)
-        with temporary.open('rb') as stream:
+        with temporary.open('r+b') as stream:
             os.fsync(stream.fileno())
         temporary.replace(destination)
     finally:

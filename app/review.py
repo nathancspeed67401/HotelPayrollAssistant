@@ -20,7 +20,7 @@ def archive_page(sheet: Sheet, image: Image.Image, directory: Path) -> Sheet:
         archival = archival.rotate(rotation, expand=True)
     try:
         archival.save(tmp, 'PNG', optimize=True)
-        with tmp.open('rb') as stream:
+        with tmp.open('r+b') as stream:
             os.fsync(stream.fileno())
         expected = digest_bytes(tmp.read_bytes())
         if destination.exists() and digest_bytes(destination.read_bytes()) != expected:

@@ -124,6 +124,7 @@ def test_unregistered_page_cannot_populate_guessed_fixed_boxes(tmp_path):
 
 def test_verified_two_pair_import_skips_single_pair_registration(monkeypatch):
     from pathlib import Path
+    from app.core import TIME_FIELDS
     from app.ocr import load_pages, scan_page
 
     def unexpected_registration(*args):
@@ -134,10 +135,12 @@ def test_verified_two_pair_import_skips_single_pair_registration(monkeypatch):
     sheet = scan_page(str(source), load_pages(str(source))[0])
     day = sheet.days[1]
     assert len(sheet.review_boxes) == 14
-    assert (day.in1, day.out1, day.in2, day.out2) == ('8:00A', '12:00P', '1:00P', '5:00P')
+    assert all(not getattr(day, field) for field in TIME_FIELDS)
+    assert tuple(day.observations[field]['proposal'] for field in TIME_FIELDS) == (
+        '8:00A', '12:00P', '1:00P', '5:00P')
 
 
-def test_legacy_geometry_with_one_pair_of_headings_cannot_prefill(tmp_path):
+def test_legacy_geometry_with_one_pair_of_headings_cannot_offer_times(tmp_path):
     from pathlib import Path
     from PIL import ImageDraw
     from app.core import TIME_FIELDS
@@ -157,3 +160,4 @@ def test_legacy_geometry_with_one_pair_of_headings_cannot_prefill(tmp_path):
     sheet = scan_page(str(source), page)
     assert not sheet.review_boxes
     assert all(not getattr(day, field) for day in sheet.days for field in TIME_FIELDS)
+    assert all(not obs.get('proposal') for day in sheet.days for obs in day.observations.values())

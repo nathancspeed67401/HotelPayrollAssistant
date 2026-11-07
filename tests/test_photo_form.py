@@ -40,6 +40,16 @@ def test_printed_cell_perimeter_is_not_employee_handwriting():
     assert not photo_form._has_ink(cell)
 
 
+def test_faint_pencil_still_requires_review_on_dim_paper():
+    empty = Image.new('L', (125, 48), 128)
+    marked = empty.copy()
+    draw = ImageDraw.Draw(marked)
+    for x in (25, 50, 75):
+        draw.line((x, 10, x + 3, 36), fill=113, width=3)
+    assert not photo_form._has_ink(empty)
+    assert photo_form._has_ink(marked)
+
+
 def test_ambiguous_no_ampm_is_not_silently_added():
     from app.line_ocr import choose_clock,Reading
     result = choose_clock([Reading('06:45',.99,.98,'raw')])
@@ -52,8 +62,9 @@ def test_missing_minutes_do_not_turn_into_valid_hour():
     assert choose_clock([Reading('6A',.99,.98,'raw')]).value == ''
 
 
-def test_strong_real_form_ocr_only_offers_a_suggestion(monkeypatch):
+def test_strong_real_form_ocr_only_offers_a_suggestion(monkeypatch, tmp_path):
     from app.line_ocr import Reading
+    from app.ocr import scan_page
     from app.review import mark_row_reviewed
     from app.smoke import single_pair_fixture
     from types import SimpleNamespace
@@ -61,11 +72,13 @@ def test_strong_real_form_ocr_only_offers_a_suggestion(monkeypatch):
 
     page, _ = single_pair_fixture()
     engine = SimpleNamespace(recognize=lambda cells, views: [
-        [Reading('23:00', .99, .98, 'raw')] for _ in cells])
+        [Reading('１１．００Ｐ．Ｍ．', .99, .98, 'raw')] for _ in cells])
     monkeypatch.setattr('app.line_ocr.get_recognizer', lambda: engine)
-    sheet = Sheet('fixture.png', 'fixture')
-    photo_form.scan_this_form(sheet, page)
+    source = tmp_path / 'fixture.png'
+    page.save(source)
+    sheet = scan_page(str(source), page)
     assert sheet.days[0].observations['in1']['proposal'] == '11:00P'
+    assert sheet.days[0].observations['in1']['candidates'][0]['text'] == '11:00PM'
     assert not sheet.days[0].in1 and not sheet.days[0].out1
     with pytest.raises(ValueError, match='Writing needs a time'):
         mark_row_reviewed(sheet, 0)

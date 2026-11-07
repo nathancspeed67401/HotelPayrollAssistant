@@ -133,8 +133,12 @@ def _has_ink(cell: Image.Image) -> bool:
         gray = gray[5:-5,5:-5]
     background = cv2.GaussianBlur(gray, (21, 21), 0)
     inner = gray[:, 3:-3]
-    contrast = background[:, 3:-3].astype('int16') - inner.astype('int16')
-    mask = np.uint8((contrast > 13) & (inner < 230)) * 255
+    paper = background[:, 3:-3].astype('int16')
+    contrast = paper - inner
+    # A dark photo compresses the difference between paper and pencil.
+    # Lower the contrast threshold there while keeping a floor for noise.
+    threshold = np.clip(.075 * paper, 8, 13)
+    mask = np.uint8((contrast > threshold) & (inner < 230)) * 255
     _, _, stats, _ = cv2.connectedComponentsWithStats(mask)
     connected = int(np.count_nonzero(stats[1:, cv2.CC_STAT_AREA] >= 3))
     return int(np.count_nonzero(mask)) >= 25 and (connected >= 2 or bool(np.any(stats[1:, cv2.CC_STAT_AREA] >= 20)))
@@ -162,7 +166,7 @@ def scan_this_form(sheet, image: Image.Image) -> bool:
     """Try the single-pair reader; every recognized clock remains a proposal."""
     from .core import DISPLAY
     from .ocr import _ocr_cell
-    from .line_ocr import PHOTO_VIEWS, LineOCRError, choose_clock, get_recognizer
+    from .line_ocr import PHOTO_VIEWS, LineOCRError, choose_clock, get_recognizer, photo_clock_text
     from .photo_grid import find_photo_grid
     upright, rotation = _portrait(image)
     left, paper_top, right, paper_bottom = _paper_box(upright)
@@ -232,6 +236,7 @@ def scan_this_form(sheet, image: Image.Image) -> bool:
         except LineOCRError as exc:
             warnings.append(f'{exc}. Enter written punches from the photograph.')
     for (row,field,cell),candidates in zip(cells,readings):
+        candidates = [replace(reading, text=photo_clock_text(reading.text)) for reading in candidates]
         decision = choose_clock(candidates)
         day = sheet.days[row]
         day.recognized[field] = decision.raw

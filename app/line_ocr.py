@@ -19,6 +19,7 @@ from .model_assets import LINE_MODEL, LINE_MODEL_SHA256
 
 VIEWS = ('raw', 'blue', 'clean', 'narrow')
 PHOTO_VIEWS = ('raw', 'gray', 'contrast', 'gray-tight')
+_CLOCK_WIDTHS = str.maketrans('０１２３４５６７８９：；．ＡＰＭａｐｍ', '0123456789:;.APMapm')
 
 
 class LineOCRError(RuntimeError):
@@ -61,6 +62,14 @@ def clock_key(text: str) -> str:
     return f'{hour}:{minute:02d}{suffix}'
 
 
+def photo_clock_text(text: str) -> str:
+    """Normalize punctuation in an otherwise literal photo clock reading."""
+    literal = re.sub(r'\s+', '', text.translate(_CLOCK_WIDTHS)).upper()
+    literal = re.sub(r'^([0-9]{1,2})[.;]([0-5][0-9])(?=[AP])', r'\1:\2', literal)
+    literal = re.sub(r'[AP](?:\.?M)?\.?$', lambda match: match[0].replace('.', ''), literal)
+    return literal if clock_key(literal) else text
+
+
 def choose_clock(readings: list[Reading]) -> Decision:
     """Preserve numeric transcription separately from a wage-affecting time.
 
@@ -79,11 +88,17 @@ def choose_clock(readings: list[Reading]) -> Decision:
     if not groups:
         return Decision('',raw,'unreadable-or-invalid')
     key,candidates = next(iter(groups.items()))
-    strong = any(r.confidence >= .97 and r.minimum >= .90 for r in candidates)
     # Preprocessing can erase or reshape the same stroke in several views.
     # Require the native crop to support the complete reading before offering it.
     native = next((r for r in candidates if r.source == 'raw'), None)
-    if native is None or (not strong and len({r.source for r in candidates}) < 2):
+    if native is None:
+        return Decision('',raw,'uncertain-reading')
+    complete = [r for r in candidates if len(re.findall(r'\d', r.text)) >= 3]
+    if native not in complete:
+        return Decision('',native.text.strip(),'needs-AM/PM-or-minutes')
+    strong = any(r.confidence >= .97 and r.minimum >= .90 for r in complete)
+    complete_views = {r.source for r in complete}
+    if not strong and len(complete_views) < 2:
         return Decision('',raw,'uncertain-reading')
     literal = re.sub(r'\s+','',native.text).upper()
     # On this handwritten form, a leading zero does not establish a 24h
@@ -93,7 +108,6 @@ def choose_clock(readings: list[Reading]) -> Decision:
     if explicit and ':' not in literal:
         # A compact clock must preserve every digit and the suffix across
         # views. A missing colon leaves less evidence of where minutes begin.
-        complete_views = {r.source for r in candidates if len(re.findall(r'\d', r.text)) >= 3}
         if len(complete_views) < 3:
             return Decision('',raw,'uncertain-reading')
     if not explicit and not (hour == 0 or hour >= 13):

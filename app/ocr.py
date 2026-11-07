@@ -123,8 +123,8 @@ def scan_page(path: str, image: Image.Image, page_number: int = 1) -> Sheet:
     sheet = Sheet(source=f"{path}#page{page_number}", source_hash=fingerprint)
     configure_tesseract()
     # Printed legacy headings resolve the form without the cost of running
-    # single-pair registration first. Grid geometry alone cannot select a
-    # reader that prefills punches.
+    # single-pair registration first. Grid geometry alone cannot select the
+    # template or assign a reading to a clock field.
     grid = find_form_grid(image)
     warnings = ["OCR is preliminary. Verify every punch against the photo before approving."]
     if grid is None or not _legacy_headers_match(image, grid):
@@ -172,10 +172,9 @@ def scan_page(path: str, image: Image.Image, page_number: int = 1) -> Sheet:
         decision = choose_time(readings)
         sheet.days[idx].recognized[field] = decision.raw
         sheet.days[idx].observations[field] = {'status':decision.status,'raw':decision.raw,
+                                             'proposal':decision.value,
                                              'confidence_is_calibrated':False}
-        if decision.value:
-            setattr(sheet.days[idx], field, decision.value)
-        else:
+        if not decision.value:
             detail = f' (read: {decision.raw[:60]})' if decision.raw else ''
             reason = {'conflicting-readings': 'different possible times',
                       'uncertain-reading': 'uncertain time',

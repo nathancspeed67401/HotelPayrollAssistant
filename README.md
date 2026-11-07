@@ -47,8 +47,8 @@ Missing or damaged weights leave unread punches for manual review.
 
 1. Add photos or PDFs. The app archives a local copy for later review.
 2. Enter the employee and the first Saturday of the pay period.
-3. Compare each of the 14 rows with the image. On the Comfort Suites single-pair
-   form the time fields start empty. Select **Use** only when a suggested time
+3. Compare each of the 14 rows with the image. Imported time fields start empty
+   on both supported forms. Select **Use** only when a suggested time
    matches the photo, or enter the verified time. Select **Checked: Save & Next**
    for every row, including blank days.
 4. Approve the sheet and export Excel. Incomplete punches, invalid times,

@@ -8,7 +8,7 @@ import re
 import cv2
 import numpy as np
 import pytesseract
-from PIL import Image
+from PIL import Image, ImageOps
 from .form_geometry import FormGrid
 
 
@@ -53,9 +53,6 @@ def _header_rows(page: Image.Image) -> list[tuple[float,float]]:
 def find_photo_grid(page: Image.Image) -> FormGrid | None:
     w, h = page.size
     header_bounds = _header_rows(page)
-    if not header_bounds:
-        return None
-    headers = [v[0] for v in header_bounds]
     gray = np.asarray(page.convert('L'))
     binary = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
                                   cv2.THRESH_BINARY_INV, 41, 10)
@@ -64,7 +61,8 @@ def find_photo_grid(page: Image.Image) -> FormGrid | None:
     if segments is None:
         return None
     horizontal, vertical, edges = [], [], []
-    midx, midy = w*.5, (headers[0]+headers[1])*.5
+    midx = w * .5
+    midy = sum(bound[0] for bound in header_bounds) / 2 if header_bounds else h * .4
     for x1, y1, x2, y2 in segments[:, 0, :]:
         dx, dy = float(x2-x1), float(y2-y1)
         if abs(dx) > w*.45 and abs(dy) < abs(dx)*.07:
@@ -112,7 +110,22 @@ def find_photo_grid(page: Image.Image) -> FormGrid | None:
         else:
             groups.append([y,[line]])
     rules = [max(g, key=lambda v:v[2])[:2] for _,g in groups]
+    body = _fit_header_rows(rules, header_bounds, midx, h) if header_bounds else None
+    if body is None:
+        body = _fit_short_headers(page, rules, left, right)
+    if body is None:
+        return None
+    grid = FormGrid(page.size, page.size, tuple(columns), tuple(body))
+    for row in range(14):
+        for col in range(2):
+            if any(not (0 <= x < w and 0 <= y < h) for x,y in grid.cell_quad(row,col)):
+                return None
+    return grid
+
+
+def _fit_header_rows(rules, header_bounds, midx, h):
     positions = np.array([a*midx+b for a,b in rules])
+    headers = [bound[0] for bound in header_bounds]
     body = []
     for week, header in enumerate(headers):
         if week == 0:
@@ -173,9 +186,50 @@ def find_photo_grid(page: Image.Image) -> FormGrid | None:
             return None
         selected = best[1]
         body.extend(zip(selected[:-1],selected[1:]))
-    grid = FormGrid(page.size, page.size, tuple(columns), tuple(body))
-    for row in range(14):
-        for col in range(2):
-            if any(not (0 <= x < w and 0 <= y < h) for x,y in grid.cell_quad(row,col)):
-                return None
-    return grid
+    return body
+
+
+def _fit_short_headers(page, rules, left, right):
+    """Recover two weeks from observed rules and individually rectified headers."""
+    w, h = page.size
+    gaps = np.diff([slope * w * .5 + offset for slope, offset in rules])
+    candidates = []
+    for start in range(len(rules) - 16):
+        # Each narrow header must be followed by all eight day boundaries.
+        # The first Friday's bottom rule is also the second header's top.
+        for header in (start, start + 8):
+            daily_gaps = gaps[header + 1:header + 8]
+            step = np.median(daily_gaps)
+            if not (h * .025 < step < h * .045 and .28 * step < gaps[header] < .72 * step
+                    and np.all((daily_gaps > .75 * step) & (daily_gaps < 1.30 * step))):
+                break
+        else:
+            candidates.append(start)
+    if len(candidates) != 1:
+        return None
+    start = candidates[0]
+    header_grid = FormGrid(page.size, page.size, ((0, left + 3), (0, right - 3)),
+                           ((rules[start], rules[start + 1]), (rules[start + 8], rules[start + 9])))
+    clock_labels = {'TIME', 'TIMEIN', 'TIMEOUT', 'IN', 'OUT'}
+    other_labels = {'DATE', 'DAY', 'ROOMS', 'ALOTTED', 'ALLOTED', 'ALLOTTED', 'TOTAL', 'HOUR', 'HOURS'}
+    directional_labels = {'TIMEIN', 'TIMEOUT', 'IN', 'OUT'}
+    labels_by_header = []
+    for row in range(2):
+        gray = ImageOps.autocontrast(header_grid.crop_cell(page, row, 0).convert('L'), cutoff=1)
+        binary = cv2.adaptiveThreshold(np.asarray(gray), 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                       cv2.THRESH_BINARY, 25, 8)
+        labels = set()
+        for view, mode in ((gray, 11), (Image.fromarray(binary), 11), (Image.fromarray(binary), 7)):
+            if mode == 7 and labels & clock_labels and labels & other_labels:
+                break
+            enlarged = view.resize((2 * view.width, 2 * view.height), Image.Resampling.BICUBIC)
+            text = pytesseract.image_to_string(ImageOps.expand(enlarged, border=12, fill=255),
+                                               config=f'--psm {mode}')
+            labels.update(re.findall(r'[A-Z]+', text.upper()))
+        if not labels & clock_labels or not labels & other_labels:
+            return None
+        labels_by_header.append(labels)
+    if not set.union(*labels_by_header) & directional_labels:
+        return None
+    return [(rules[index], rules[index + 1])
+            for header in (start, start + 8) for index in range(header + 1, header + 8)]

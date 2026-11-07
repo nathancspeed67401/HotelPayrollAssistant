@@ -20,9 +20,10 @@ def main():
         raise ValueError('Predictions and requested evaluation split do not match')
     ids={s['id'] for s in sheets}
     keys = {(item['sheet'], item['row'], item['field']) for item in labels}
-    scored = [item for item in run['predictions'] if (item['sheet'], item['row'], item['field']) in keys]
-    result=evaluate_cells(labels,scored,sum(s.get('expected_cells',28) for s in sheets))
     registration = run['registration']
+    scored = [item | {'status': 'alignment-failed'} if registration.get(item['sheet']) is False else item
+              for item in run['predictions'] if (item['sheet'], item['row'], item['field']) in keys]
+    result=evaluate_cells(labels,scored,sum(s.get('expected_cells',28) for s in sheets))
     result['sheets'] = {'registered': sum(registration.get(sid) is True for sid in ids),
                         'failed_registration': sum(registration.get(sid) is False for sid in ids),
                         'unscanned': sum(sid not in registration for sid in ids)}

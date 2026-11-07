@@ -2,7 +2,7 @@
 from datetime import datetime, timedelta
 from pathlib import Path
 import xlsxwriter
-from .core import Sheet, calculate_day, summarize, validate_sheet, DAYS, fully_reviewed
+from .core import Sheet, calculate_day_minutes, summarize_minutes, validate_sheet, DAYS, fully_reviewed
 from .review import review_issues, approval_current
 import unicodedata
 import tempfile
@@ -72,19 +72,20 @@ def _write_workbook(path, sheets, first):
     headers = ['Employee','Week 1 hours','Week 2 hours','All hours','Regular (est.)','OT (est.)','Approved']
     for col, val in enumerate(headers):
         summary.write(4, col, val, header)
-    for r, s in enumerate(sorted(sheets, key=lambda x: x.employee.lower()), start=5):
-        sums = summarize(s)
+    ordered = sorted(sheets, key=lambda sheet: sheet.employee.lower())
+    totals = [summarize_minutes(sheet) for sheet in ordered]
+    fields = ('week1', 'week2', 'total', 'regular', 'overtime')
+    for r, (s, sums) in enumerate(zip(ordered, totals), start=5):
         summary.write_string(r, 0, s.employee, text)
-        for c, fld in enumerate(('week1','week2','total','regular','overtime'), start=1):
-            summary.write_number(r, c, sums[fld], number)
+        for c, field in enumerate(fields, start=1):
+            summary.write_number(r, c, sums[field] / 60, number)
         summary.write(r, 6, 'YES', text)
     total_row = len(sheets) + 5
     summary.write(total_row, 0, 'TOTAL', header)
-    for c in range(1, 6):
+    for c, field in enumerate(fields, start=1):
         cc = chr(65 + c)
-        field = ('week1','week2','total','regular','overtime')[c-1]
         summary.write_formula(total_row, c, f'=SUM({cc}6:{cc}{total_row})', number,
-                              round(sum(summarize(s)[field] for s in sheets),2))
+                              sum(sums[field] for sums in totals) / 60)
     summary.write_blank(total_row, 6, None, header)
     summary.autofilter(4, 0, total_row-1, 6)
 
@@ -100,14 +101,15 @@ def _write_workbook(path, sheets, first):
     for c, val in enumerate(['Employee','Week','Paper day','In 1','Out 1','In 2','Out 2','Hours','Date on paper']):
         detail.write(0, c, val, header)
     r = 1
-    for s in sorted(sheets, key=lambda x: x.employee.lower()):
+    for s in ordered:
         for i, day in enumerate(s.days):
             detail.write_string(r,0,s.employee,text)
             detail.write_number(r,1,i//7+1,number)
             detail.write(r,2,DAYS[i%7],text)
             for c, key in enumerate(('in1','out1','in2','out2'),3):
                 detail.write_string(r,c,getattr(day,key),text)
-            detail.write_number(r,7,round(calculate_day(day)[0] or 0,2),number)
+            minutes, _ = calculate_day_minutes(day)
+            detail.write_number(r,7,minutes / 60,number)
             detail.write_datetime(r,8,datetime.combine(first+timedelta(days=i),datetime.min.time()),datefmt)
             r += 1
     detail.autofilter(0,0,r-1,8)
@@ -118,4 +120,5 @@ def _write_workbook(path, sheets, first):
     info.write(4,0,'Do not send employee photos or handwritten signatures to Kansas City unless specifically required.',small)
     info.write(6,0,'Overtime shown is an estimate: over 40 hours in each Saturday-Friday form week. It MUST be verified against the employer-defined fixed 168-hour workweek and correct actual timing.',small)
     info.write(8,0,'Records and original signed timesheets should be retained following company policy and applicable labor laws.',small)
+    info.write(10,0,'Hours are elapsed punch minutes shown as decimal hours. Displayed values round to two decimals. Totals use the original minutes. Meal deductions and payroll rounding policies are not applied.',small)
     workbook.close()

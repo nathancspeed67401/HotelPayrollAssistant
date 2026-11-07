@@ -73,6 +73,25 @@ def test_one_damaged_import_does_not_hide_other_recoverable_pages(tmp_path):
     assert len(errors)==1 and (tmp_path/'damaged.json').exists()
 
 
+def test_invalid_json_shape_is_reported_and_cannot_replace_valid_backup(tmp_path):
+    path = tmp_path / 'current_session.json'
+    sheet = Sheet('a', 'a', 'Employee', '2026-10-24')
+    save_session(str(path), [sheet])
+    save_session(str(path), [sheet])
+    backup = path.with_suffix('.json.bak')
+    original_backup = backup.read_bytes()
+    path.write_text('{"version": 1, "sheets": [{}]}')
+    save_session(str(path), [sheet])
+    assert backup.read_bytes() == original_backup
+
+    pending = tmp_path / 'pending'
+    journal_import(sheet, pending)
+    (pending / 'damaged.json').write_text('[]')
+    errors = []
+    assert len(recover_imports(pending, errors)) == 1
+    assert len(errors) == 1 and 'damaged.json' in errors[0]
+
+
 def test_two_application_instances_cannot_overwrite_the_same_payroll(tmp_path):
     lock=SessionLock(tmp_path)
     try:

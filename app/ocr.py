@@ -96,6 +96,12 @@ def scan_page(path: str, image: Image.Image, page_number: int = 1) -> Sheet:
     fingerprint = digest_bytes(raw + f"-page{page_number}".encode())
     sheet = Sheet(source=f"{path}#page{page_number}", source_hash=fingerprint)
     configure_tesseract()
+    # The actual Comfort Suites sheet has one pair; retain the aligned
+    # two-pair reader for the older form instead of replacing either reader.
+    from .photo_form import is_this_form, scan_this_form
+    if is_this_form(image):
+        scan_this_form(sheet, image)
+        return sheet
     # Every recognition result is tentative until the manager approves the sheet.
     name_area = _crop_scaled(image, (593, 204, 888, 249))
     guess = _ocr_cell(name_area, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")

@@ -1,8 +1,116 @@
 # Development progress · November 7, 2026
 
-**Engineering candidate based on v0.5.2. Keep it out of live payroll.**
+**Engineering candidate based on v0.5.2. Supervised install and live payroll gates are open.**
 
-## Handwriting OCR follow-up
+## OCR and Windows release follow-up
+
+[PR #5](https://github.com/nathancspeed67401/HotelPayrollAssistant/pull/5) is
+the engineering candidate. The tested source is
+[`cbe6022463429fa6b42bd94613bb77ba0a448b0c`](https://github.com/nathancspeed67401/HotelPayrollAssistant/commit/cbe6022463429fa6b42bd94613bb77ba0a448b0c).
+The baseline is `fe4c8486f84a431884a76cb4ef961e43828ff14a`. Main was
+`9a46c916334d56e9460a3939a2b7a497caf445d0` when this work started.
+
+- Clock reading accepts alternate punctuation in a fully written clock and
+  normalizes full-width characters. A shorthand hour supplies no evidence
+  for written minutes. A faint-ink threshold scales with local paper
+  brightness and still requires a connected ink pattern.
+- New imports of either form keep OCR suggestions in the review controls.
+  The manager deliberately enters or accepts a punch, checks every row,
+  then approves the sheet. A prior saved session retains its entries and
+  review state.
+- All 19 original hashes matched. The split is 14 development, four
+  reserved regression and one historical development sheet. The 532 labels
+  are first-pass annotations. The scorer and split stayed fixed across the
+  baseline and candidate. No fresh writer-disjoint acceptance set was available.
+
+| Private dataset | Registered | Exact raw | Correct suggestions / eligible | Manual entries | Unsafe suggestions |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Development originals | 14/14 → 14/14 | 110/151 → 112/151 | 27/50 → 28/50 | 124 → 123 | 0 → 0 |
+| Development dimmed | 13/14 → 13/14 | 105/151 → 109/151 | 24/50 → 24/50 | 127 → 127 | 0 → 0 |
+| Development perspective | 13/14 → 13/14 | 106/151 → 108/151 | 23/50 → 24/50 | 128 → 127 | 0 → 0 |
+| Reserved originals | 4/4 → 4/4 | 36/65 → 39/65 | 5/26 → 7/26 | 60 → 58 | 0 → 0 |
+
+| Private dataset | Readable punches missed in failed registrations | Wrong raw clocks | Invalid raw | Readable punches flagged blank | Clean blanks sent to review |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Development originals | 0 → 0 | 6 → 6 | 35 → 33 | 0 → 0 | 0 → 0 |
+| Development dimmed | 4 → 4 | 7 → 7 | 33 → 31 | 2 → 0 | 0 → 0 |
+| Development perspective | 4 → 4 | 7 → 7 | 34 → 32 | 0 → 0 | 0 → 0 |
+| Reserved originals | 0 → 0 | 3 → 3 | 26 → 23 | 0 → 0 | 4 → 5 |
+
+The candidate flagged all 30 crossed-out development cells and all 14
+crossed-out reserved cells, and offered zero suggestions on them. Wrong
+suggestions on readable punches were zero in these runs. The dim run now
+sends both faint punches to the reader. Alternate crops and three other
+offline model weights produced limited gains or more errors on development.
+Thirty-five readable development entries had no minutes and 66 had minutes
+without AM/PM. The reserved sheets had 39 entries without AM/PM. The reserved
+exact result is 60.0% against the 98% target. Manual-entry counts measure
+readable punches without a correct complete suggestion. Each row still needs
+visual review.
+
+### Verification
+
+The full candidate suite passed 143 tests on Linux with zero skips
+(131 non-GUI and 12 desktop). The model/workbook self-test and desktop
+import/review/approve/restart/export self-test also passed. The test
+processes ran with outbound network system calls blocked and the desktop
+display preconnected over loopback.
+
+```sh
+python scripts/fetch_ocr_model.py
+python -m pytest -q --ignore=tests/test_ui_safety.py
+python -m pytest -q tests/test_ui_safety.py
+python main.py --self-test
+python main.py --gui-self-test
+python experiments/evaluate_pipeline.py --manifest test_samples/ground_truth.json --output "$PRIVATE_DIR/fictional-fixture-evaluation.json"
+```
+
+The fictional-fixture evaluator offered 128 of 128 expected complete hints,
+with zero autofilled punches, no suggestions on 431 blank cells, and one
+ambiguous cell left for entry.
+
+The offline desktop batch imported 22 fictional photos and eight PDFs,
+blocked the missing punch and unapproved export, checked 420 rows and
+restored all 30 approvals. OpenPyXL independently reconciled the 420 dates
+and exact-minute totals. The first printed week totaled 18,196 minutes and
+the second 18,474, for 36,670 elapsed minutes with one overtime minute.
+The batch includes a Friday overnight crossing into Saturday, a midnight
+start, and two-pair split shifts. See [Release status](RELEASE_STATUS.md)
+for the same test inputs and expected outputs on Lynnette's PC.
+
+The benchmark commands below also apply to this source and its baseline.
+Use the same first-pass manifest and only the development splits to tune.
+The four reserved sheets remain a regression check. Before a new acceptance
+run, independently verify the labels and freeze the source SHA and the
+unchanged scoring rules. Add fresh photos from different writers and use the
+acceptance split with `--reference-manifest` to enforce writer separation.
+
+### Windows and release gates
+
+[CircleCI Windows job #31](https://circleci.com/gh/nathancspeed67401/HotelPayrollAssistant/31)
+passed for `cbe6022463429fa6b42bd94613bb77ba0a448b0c` using the existing
+offline Windows workflow. The earlier [job #30](https://circleci.com/gh/nathancspeed67401/HotelPayrollAssistant/30)
+failed for `fe4c8486f84a431884a76cb4ef961e43828ff14a`. Its first failing
+step still requires the signed-in log. [Job #29](https://circleci.com/gh/nathancspeed67401/HotelPayrollAssistant/29)
+passed for an earlier source commit.
+
+The payroll CircleCI connection required authentication. The unauthenticated
+artifact API returned HTTP 404 for both #29 and #31. The three #31 files
+needed are `Windows-Setup/HotelPayrollAssistant_Setup.exe`,
+`Verification/installer-sha256.txt` and `Verification/source-commit.txt`.
+Setup bytes and the checksum still need verification.
+
+A supervised install requires setup bytes, matching SHA-256 and the
+exact-source manifest from the same passing job. Live use additionally
+requires fresh OCR acceptance, Lynnette's Windows acceptance and the
+payroll owner's output and policy approval. The workweek follows the
+Saturday–Friday printed rows. Review the 15-minute housekeeping break
+requirement manually for days over five hours and calculate from the actual
+punches. The workbook uses exact minutes with zero automatic deductions.
+The separate meal treatment and payroll rounding or exact-minute policy
+still require confirmation.
+
+## Previous OCR iteration
 
 [PR #5](https://github.com/nathancspeed67401/HotelPayrollAssistant/pull/5) starts at
 [`9a46c916334d56e9460a3939a2b7a497caf445d0`](https://github.com/nathancspeed67401/HotelPayrollAssistant/commit/9a46c916334d56e9460a3939a2b7a497caf445d0).
@@ -187,10 +295,9 @@ A GitHub commit status establishes the job outcome only. Use the named job's
    a fresh writer-disjoint evaluation before relying on results for release.
 3. Run the next OCR comparison above using the private development split and
    keep the already scored reserved sheets separate.
-4. Confirm the employer's actual workweek boundary, time conventions, meal
-   deductions and rounding with the payroll owner. The workbook measures
-   elapsed punch minutes and labels Saturday–Friday regular/overtime estimates
-   as preliminary. [U.S. Department of Labor workweek guidance](https://www.dol.gov/agencies/whd/fact-sheets/23-flsa-overtime-pay)
+4. Use the Saturday–Friday printed weeks and the existing overnight entry
+   convention. Get the payroll owner's approval of the reconciled workbook
+   and the policy decisions listed above.
 
 Keep original employee scans, private labels and detailed predictions outside
 Git and CI. The versioned private checkpoint contains the current manifest and

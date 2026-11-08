@@ -155,8 +155,6 @@ def _has_strike_through(cell: Image.Image) -> bool:
     lines = cv2.HoughLinesP(np.uint8(ink) * 255, 1, np.pi / 180,
                             threshold=round(.39 * width), minLineLength=round(.69 * width),
                             maxLineGap=max(2, round(.035 * width)))
-    if lines is None:
-        return False
 
     # Registration can leave a faint printed rule at either row edge.
     # Require supporting ink in the interior of the cell.
@@ -165,7 +163,7 @@ def _has_strike_through(cell: Image.Image) -> bool:
     y, x = np.nonzero(ink[top:bottom, left:right])
     y += top
     x += left
-    for x1, y1, x2, y2 in lines[:, 0]:
+    for x1, y1, x2, y2 in (() if lines is None else lines[:, 0]):
         if abs(x2 - x1) < .68 * width or abs(y2 - y1) > .75 * height:
             continue
         slope = (y2 - y1) / (x2 - x1)
@@ -179,6 +177,55 @@ def _has_strike_through(cell: Image.Image) -> bool:
         # underline below the time cannot supply this evidence on its own.
         if (np.count_nonzero(above) >= 14 and np.count_nonzero(below) >= 14
                 and np.ptp(x[above]) >= .18 * width and np.ptp(x[below]) >= .18 * width):
+            return True
+    return _bridges_handwritten_ink(ink, x, y)
+
+
+def _bridges_handwritten_ink(ink: np.ndarray, x: np.ndarray, y: np.ndarray) -> bool:
+    """Require a short stroke to cross separate ink groups and bridge a gap."""
+    height, width = ink.shape
+    lines = cv2.HoughLinesP(np.uint8(ink) * 255, 1, np.pi / 180,
+                            threshold=round(.34 * width), minLineLength=round(.47 * width),
+                            maxLineGap=max(2, round(.035 * width)))
+    if lines is None:
+        return False
+    line_ink = cv2.dilate(np.uint8(ink), np.ones((3, 1), dtype=np.uint8))
+    for x1, y1, x2, y2 in lines[:, 0]:
+        if abs(x2 - x1) < .47 * width or abs(y2 - y1) > .75 * height:
+            continue
+        slope = (y2 - y1) / (x2 - x1)
+        midpoint = y1 + slope * (width * .5 - x1)
+        if not .20 * height < midpoint < .80 * height:
+            continue
+        cols = np.arange(min(x1, x2), max(x1, x2) + 1)
+        rows = np.rint(y1 + slope * (cols - x1)).astype(int)
+        if np.mean(line_ink[rows, cols]) < .90:
+            continue
+
+        distance = y - (y1 + slope * (x - x1))
+        above = (-20 < distance) & (distance < -3)
+        below = (3 < distance) & (distance < 20)
+        if (np.count_nonzero(above) < 14 or np.count_nonzero(below) < 14
+                or np.ptp(x[above]) < .18 * width or np.ptp(x[below]) < .18 * width):
+            continue
+        start, end = np.percentile(x[above | below], (10, 90))
+        overlap = min(cols[-1], end) - max(cols[0], start)
+        if overlap < .80 * (end - start):
+            continue
+
+        upper = np.bincount(x[(-10 < distance) & (distance < -3)], minlength=width) > 0
+        lower = np.bincount(x[(3 < distance) & (distance < 10)], minlength=width) > 0
+        crossings = (upper & lower)[cols]
+        starts = np.flatnonzero(crossings & ~np.r_[False, crossings[:-1]])
+        ends = np.flatnonzero(crossings & ~np.r_[crossings[1:], False])
+        substantial = ends > starts
+        starts, ends = starts[substantial], ends[substantial]
+        if len(starts) < 2 or starts[-1] - ends[0] < .16 * width:
+            continue
+        # Along a true cancellation the stroke continues through paper
+        # between the crossed glyphs. An elongated digit alone cannot do that.
+        gap = (~upper & ~lower)[cols[ends[0]:starts[-1] + 1]]
+        if np.any(gap[:-2] & gap[1:-1] & gap[2:]):
             return True
     return False
 

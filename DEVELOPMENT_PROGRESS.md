@@ -2,6 +2,56 @@
 
 **Engineering candidate based on v0.5.2. The installer is verified for supervised testing with fictional data. Live payroll acceptance is open.**
 
+## Short cancellation strokes and blur experiment
+
+The single-pair importer now also checks for a short, continuous stroke
+that intersects two separated ink groups and remains visible in the space
+between them. The check runs only on proposed punches. It withholds the
+suggestion and leaves the raw text and cell available for manual review.
+
+On the four short fictional cancellations that remained at draft head
+`0485d5ee4175a5cee7f289de9e033e2907dca222`, suggestions fell from four to
+one. All 12 clean, underlined and printed-edge controls kept their
+suggestions. The remaining fictional mark lacked a clear gap between
+crossings. The real-reader integration fixture covers three short marks,
+blank and dash-only controls, and the required manual review. The offline
+Linux headless suite passed 147 tests and the application self-test.
+
+The frozen code and test tree was `c1177f1d4e8efce04d1cad13a29656515042bf6e`.
+The offline import path and unchanged scorer matched the verified baseline
+on the same photos, labels and pinned model weights.
+
+| Photo set | Exact literal reads | Correct complete suggestions | Manual entries | Wrong raw reads |
+| --- | ---: | ---: | ---: | ---: |
+| Development originals | 115/151 | 32/50 | 119 | 5 |
+| Development dimmed | 116/151 | 29/50 | 122 | 7 |
+| Development perspective | 117/151 | 30/50 | 121 | 8 |
+| Reserved originals | 40/65 | 7/26 | 58 | 3 |
+
+Every private run had zero unsafe suggestions and zero autofilled punches.
+All 30 crossed-out development cells and 14 crossed-out reserved cells
+were flagged for review on the originals. The four reserved originals
+were scored in aggregate after the OCR code was frozen. A fresh
+writer-disjoint set with independently checked labels is still needed
+for the 98% acceptance test.
+
+A local blur probe fit horizontal and vertical printed rules beside the
+clock cells. It distinguished the two blur directions and defocus on
+fictional controls while leaving all 28 sharp controls alone. On the
+development originals, 57 of 171 uncertain cells were eligible for
+restoration, including 13 literal misses. Bounded sharpening and
+regularized inverse filtering each added one exact raw read and one
+wrong raw read. A matching unaltered second-reader output recovered no
+original or dimmed reads and one perspective-variant read. No tested
+policy improved complete suggestions. Blur restoration stays out of the
+importer.
+
+Next, test limited recovery across a vertical clock-column divider
+within the same row. Use only ink connected to the inside of the
+registered punch, exclude the printed divider, and test with neighboring
+ink and blank controls. Compare exact reads, correct suggestions and wrong
+reads separately before freezing a candidate.
+
 ## Withhold suggestions on crossed-out clocks
 
 The single-pair importer withholds a complete suggestion when a nearly

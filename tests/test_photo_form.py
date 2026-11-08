@@ -211,3 +211,46 @@ def test_real_import_withholds_suggestions_for_crossed_out_clocks(tall_header, t
     assert sheet.days[2].observations['in1']['status'] == 'possible-strike-through'
     with pytest.raises(ValueError, match='Writing needs a time'):
         mark_row_reviewed(sheet, 2)
+
+
+def test_real_import_withholds_short_strikes_that_bridge_clock_ink(tmp_path):
+    from PIL import ImageFont
+
+    from app.ocr import scan_page
+    from app.review import mark_row_reviewed
+    from app.smoke import single_pair_fixture
+
+    page, rows = single_pair_fixture(tall_header=True)
+    draw = ImageDraw.Draw(page)
+    marks = (None, (7, 36, 111, 36), (7, 41, 111, 41), (19, 20, 91, 20),
+             (8, 19, 111, 19), (8, 26, 111, 14), (8, 23, 110, 23))
+    clocks = {'in1': '10:23P', 'out1': '6:45A'}
+    for row, (top, _) in enumerate(rows):
+        ink = (55, 57, 64) if row < 7 else (27, 52, 131)
+        font = ImageFont.load_default(size=21 if row < 7 else 26)
+        design = row % 7
+        for left, time in zip((265, 390), clocks.values(), strict=True):
+            draw.rectangle((left + 2, top + 2, left + 121, top + 43), fill='white')
+            if design != 6:
+                draw.text((left + 21, top + 6), time, font=font, fill=ink)
+            if mark := marks[design]:
+                x1, y1, x2, y2 = mark
+                stroke = (174, 176, 181) if design == 4 else ink
+                draw.line((left + x1, top + y1, left + x2, top + y2), fill=stroke, width=2)
+
+    source = tmp_path / 'fictional-short-strikes.png'
+    page.save(source)
+    sheet = scan_page(str(source), page)
+
+    assert len(sheet.review_boxes) == 14
+    for row, field in ((3, 'in1'), (3, 'out1'), (10, 'in1')):
+        observation = sheet.days[row].observations[field]
+        assert observation['status'] == 'possible-strike-through'
+        assert not observation['proposal']
+
+    for row in (0, 1, 2, 7, 8, 9):
+        for field, time in clocks.items():
+            assert sheet.days[row].observations[field]['proposal'] == time
+    assert all(not (day.in1 or day.out1 or day.in2 or day.out2) for day in sheet.days)
+    with pytest.raises(ValueError, match='Writing needs a time'):
+        mark_row_reviewed(sheet, 3)

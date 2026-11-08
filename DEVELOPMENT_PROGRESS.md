@@ -44,11 +44,20 @@ with the primary reader, compared with 114 and 32 for the baseline. The
 public handwriting-font warm start showed a small transcription gain while
 losing suggestions. The draft keeps the existing model weights.
 
-The remaining investigation should target clipped strokes and ambiguous
-meridiem glyphs. Compare a distinct handwriting model on the development
-misses and measure false readings on crossed-out and ambiguous cells before
-attempting an importer change. Keep individual reserved predictions out of
-tuning and save only aggregate results in this repository.
+An offline TrOCR small handwriting probe at revision
+`b4648cfa171985a6745f37ddd637e98c0da958ac` recovered one of 37 original
+development misses across native and tightened grayscale crops. It was also
+tested on 17 baseline matches and 11 ambiguous or crossed-out controls.
+Two primary views already read the correct numeric portion on 17 of the 37
+misses with a written meridiem. Six of those 17 had the correct A or P in at
+least one primary output. A public-font suffix classifier with projected
+crop boundaries recovered three of the misses and made four wrong guesses.
+
+The next experiment should isolate the A/P mark using the final numeric
+glyph's position and test a classifier trained with natural handwritten
+glyphs and explicit no-suffix controls. Compare complete suggestions and
+wrong reads on the development split before considering an importer change.
+Use the reserved originals only for a frozen regression.
 
 ## Clock-specific handwriting reader
 

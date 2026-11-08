@@ -170,6 +170,45 @@ def _has_faint_ink(cell: Image.Image) -> bool:
     return right - left >= .13 * width and max(rows) - min(rows) <= .34 * height
 
 
+def _hue_distance(hues: np.ndarray, center: int) -> np.ndarray:
+    return np.abs((hues - center + 90) % 180 - 90)
+
+
+def _has_overlapping_ink_colors(cell: Image.Image) -> bool:
+    """Find distinct pen colors sharing the same stroke area."""
+    width = round(cell.width * 48 / cell.height)
+    rgb = np.asarray(cell.convert('RGB').resize((width, 48), Image.Resampling.BILINEAR))
+    gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
+    contrast = cv2.GaussianBlur(gray, (21, 21), 0).astype('int16') - gray
+    hsv = cv2.cvtColor(rgb, cv2.COLOR_RGB2HSV)
+    hue = hsv[:, :, 0].astype('int16')
+    colored = (hsv[:, :, 1] >= 52) & (contrast >= 18)
+    colored[:5] = colored[-5:] = False
+    colored[:, :8] = colored[:, -8:] = False
+    histogram = np.bincount(hue[colored], minlength=180)
+    weights = sum(np.roll(histogram, shift) for shift in range(-9, 10))
+    primary = int(weights.argmax())
+    weights[_hue_distance(np.arange(180), primary) < 38] = 0
+    secondary = int(weights.argmax())
+    if weights[secondary] < 12:
+        return False
+
+    first = colored & (_hue_distance(hue, primary) <= 10)
+    second = colored & (_hue_distance(hue, secondary) <= 10)
+    first_y, first_x = np.nonzero(first)
+    second_y, second_x = np.nonzero(second)
+    if (min(first_x.max(), second_x.max()) - max(first_x.min(), second_x.min()) < 5
+            or min(first_y.max(), second_y.max()) - max(first_y.min(), second_y.min()) < 5):
+        return False
+
+    # Nearby strokes of both colors distinguish an overwrite from a pen
+    # change between separate parts of an otherwise readable clock.
+    neighborhood = np.ones((5, 5), np.uint8)
+    near_first = cv2.dilate(first.astype(np.uint8), neighborhood) > 0
+    near_second = cv2.dilate(second.astype(np.uint8), neighborhood) > 0
+    return min(np.count_nonzero(first & near_second), np.count_nonzero(second & near_first)) >= 9
+
+
 def _has_strike_through(cell: Image.Image) -> bool:
     """Find a long stroke through the writing before offering a suggestion."""
     height = 48
@@ -391,6 +430,8 @@ def scan_this_form(sheet, image: Image.Image) -> bool:
     for i, ((row,field,cell), candidates, decision) in enumerate(zip(cells,readings,decisions)):
         if decision.value and _has_strike_through(cell):
             decision = replace(decision, value='', status='possible-strike-through')
+        if decision.value and _has_overlapping_ink_colors(cell):
+            decision = replace(decision, value='', status='possible-overwrite')
         day = sheet.days[row]
         day.recognized[field] = decision.raw
         day.observations[field] = {

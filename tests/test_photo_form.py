@@ -352,3 +352,61 @@ def test_faint_punches_require_an_explicit_review_decision(tmp_path):
     sheet.days[1].blank_confirmed = ['in1', 'out1']
     mark_row_reviewed(sheet, 1)
     assert sheet.reviewed_days[1]
+
+
+def test_overlapping_pen_colors_require_review(monkeypatch, tmp_path):
+    from types import SimpleNamespace
+
+    from PIL import ImageFont
+
+    from app.line_ocr import Reading
+    from app.ocr import scan_page
+    from app.review import mark_row_reviewed
+    from app.smoke import single_pair_fixture
+
+    engine = SimpleNamespace(recognize=lambda cells, views: [
+        [Reading('9:41A', .99, .98, 'raw')] for _ in cells])
+    monkeypatch.setattr('app.line_ocr.get_recognizer', lambda: engine)
+    page, rows = single_pair_fixture()
+    draw = ImageDraw.Draw(page)
+    font = ImageFont.load_default(size=24)
+    blue = (23, 42, 135)
+    red = (150, 25, 35)
+
+    for row, (top, _) in enumerate(rows):
+        for left in (265, 390):
+            draw.rectangle((left + 2, top + 2, left + 121, top + 43), fill='white')
+            if row % 7 == 3:
+                continue
+            start = left + 16
+            if row % 7 == 2:
+                draw.text((start, top + 8), '9:41', font=font, fill=blue)
+                draw.text((start + 63, top + 8), 'A', font=font, fill=red)
+            else:
+                text = '8:41A' if row % 7 == 1 else '9:41A'
+                draw.text((start, top + 8), text, font=font, fill=blue)
+            if row % 7 == 1:
+                draw.text((start + 2, top + 7), '9', font=font, fill=red)
+            if row % 7 == 4:
+                draw.line((left + 9, top + 23, left + 109, top + 23), fill=blue, width=2)
+
+    path = tmp_path / 'fictional-overwritten-punches.png'
+    page.save(path)
+    sheet = scan_page(str(path), page)
+    assert len(sheet.review_boxes) == 14
+    for row, day in enumerate(sheet.days):
+        for field in ('in1', 'out1'):
+            observation = day.observations[field]
+            if row % 7 == 1:
+                assert observation['status'] == 'possible-overwrite'
+                assert not observation['proposal']
+            elif row % 7 == 3:
+                assert observation['status'] == 'blank'
+            elif row % 7 == 4:
+                assert observation['status'] == 'possible-strike-through'
+                assert not observation['proposal']
+            else:
+                assert observation['proposal'] == '9:41A'
+            assert not getattr(day, field)
+    with pytest.raises(ValueError, match='Writing needs a time'):
+        mark_row_reviewed(sheet, 1)

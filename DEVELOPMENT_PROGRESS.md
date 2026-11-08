@@ -2,6 +2,55 @@
 
 **Engineering candidate based on v0.5.2. The installer is verified for supervised testing with fictional data. Live payroll acceptance is open.**
 
+## Overlapping pen colors
+
+The offline photo importer now withholds a complete time suggestion when
+two distinct pen colors visibly overlap in the same part of the clock.
+The cell still needs explicit review. A pen change between separated
+glyphs kept its suggestion in the fictional controls.
+
+On an original fictional sheet, the importer offered suggestions on 15
+of 24 two-color overwrites. The new check withheld all 15 and preserved
+the two clean suggestions and two blank cells. A separate full-sheet
+comparison preserved all ten correct suggestions on clean, joined and
+separate-pen controls. Across original, dimmed, perspective and JPEG
+fictional variants, suggestions on offset overwrites fell from 24 to 5.
+The 80 suggestions on clean, joined and separate-pen controls were
+preserved. Blank, dash and crossed-out controls produced no suggestions.
+The check depends on visible color separation. One same-color overwrite
+continued to receive a suggestion in the fictional stress test.
+
+The baseline was draft head `684bd67d52ed67f0d466b0314a8b6ab53dab5e74`.
+The frozen code and test tree was `aa6ee373e7f51672f10db5f49adcf253f199000e`.
+Both ran the same offline import path, pinned models and scorer.
+All scored counters matched.
+
+| Photo set | Exact literal reads | Correct complete suggestions | Manual entries | Wrong raw reads | Unsafe suggestions |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Development originals | 115/151 | 32/50 | 119 | 5 | 0 |
+| Development dimmed | 116/151 | 29/50 | 122 | 7 | 0 |
+| Development perspective | 117/151 | 30/50 | 121 | 8 | 0 |
+| Reserved originals | 40/65 | 7/26 | 58 | 3 | 0 |
+
+All comparisons had zero autofilled punches. The four reserved originals
+were scored in aggregate after freezing the candidate. The offline Linux
+suite passed 156 tests and the application self-test. Twelve GUI tests
+were skipped without a display. Production accuracy still requires fresh,
+writer-disjoint photos with independently checked labels.
+
+For the separate character-alignment experiment, local ink-color evidence
+and counts of horizontal stroke crossings missed the dimmed correction.
+A junction-count gate withheld the correction read and both exact
+recoveries on originals. No version gained a complete suggestion.
+Alignment remains experimental.
+
+Next, test whether the disputed glyph changes when the reader sees two
+nested contrast masks restricted to that glyph. Build same-pen overwrites
+and dense clean joins with matched stroke widths, then compare the change
+in the same glyph's reading on development originals and dimmed photos.
+Use instability only as a reason to abstain and preserve the full-crop
+requirements for any suggestion.
+
 ## Faint handwriting review
 
 The offline importer now flags coherent faint strokes when the usual ink

@@ -2,6 +2,56 @@
 
 **Engineering candidate based on v0.5.2. The installer is verified for supervised testing with fictional data. Live payroll acceptance is open.**
 
+## Withhold suggestions on crossed-out clocks
+
+The single-pair importer withholds a complete suggestion when a nearly
+continuous stroke crosses the writing and clock ink remains visible on both
+sides. It retains the raw OCR reading and marks the cell for manual review.
+Printed row edges are excluded from the supporting evidence.
+
+In two fictional photo probes, suggestions on 32 canceled punches fell from
+**29 to 4**. The remaining four had shorter cancellations. A wider detector
+caught all four and withheld a correct suggestion on both the original and
+dimmed development sets. The candidate uses the narrower detector. It kept
+all 16 suggestions on clean, underlined and printed-edge controls. Blank and
+dash-only controls received zero suggestions. Two real-reader
+import tests cover both printed header layouts, blank cells, underlines,
+printed edges and multiple strike styles. The offline Linux headless suite
+passed 146 tests and the application self-test.
+
+The baseline is draft head `b1b056a333e96a05d5a340992d5ac73df425c3f5`.
+The frozen source and test tree is `ca68e7aac2eda1cca21dbed28b03c2d8a7dfdc7a`.
+The same offline import path, pinned weights, original hashes, labels and
+scorer produced identical counts in both versions.
+
+| Photo set | Exact literal reads | Correct complete suggestions | Manual entries | Wrong raw reads |
+| --- | ---: | ---: | ---: | ---: |
+| Development originals | 115/151 | 32/50 | 119 | 5 |
+| Development dimmed | 116/151 | 29/50 | 122 | 7 |
+| Development perspective | 117/151 | 30/50 | 121 | 8 |
+| Reserved originals | 40/65 | 7/26 | 58 | 3 |
+
+Every private run had zero wrong or unsafe suggestions and zero autofilled punches.
+All 30 crossed-out development cells and all 14 crossed-out reserved cells
+were flagged for review on the originals. The reserved originals were run in
+aggregate after freezing the candidate. Independently checked photos from
+different writers are still needed for the 98% acceptance test.
+
+Localized suffix masking with an adjacent blank control recovered one
+additional exact reading on development originals and also selected a raw
+clock on an ambiguous cell. Requiring the independent reader to agree on
+the digits produced zero changes across originals, dim and perspective.
+A separate check using the bundled isolated-digit classifier also recovered
+zero reads on the development originals. Neither experiment is in the
+importer.
+
+Next, measure blur on printed rules near unreadable development punches.
+Use the rule edges to estimate a direction and width, then test whether
+applying a restrained deblur to the original crop corroborates intact clock
+reads. Include deliberately blurred and unblurred controls and score
+literal reads, complete suggestions, manual entries and wrong reads
+separately. Keep the reserved split for the frozen regression.
+
 ## Printed-grid retry under uneven lighting
 
 When the printed form header establishes orientation and the first grid

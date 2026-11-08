@@ -2,6 +2,7 @@
 
 Fixtures are generated with no real worker names or payroll images.
 """
+import pytest
 from PIL import Image, ImageDraw
 from app.core import Sheet
 from app import photo_form
@@ -68,7 +69,6 @@ def test_strong_real_form_ocr_only_offers_a_suggestion(monkeypatch, tmp_path):
     from app.review import mark_row_reviewed
     from app.smoke import single_pair_fixture
     from types import SimpleNamespace
-    import pytest
 
     page, _ = single_pair_fixture()
     engine = SimpleNamespace(recognize=lambda cells, views: [
@@ -139,3 +139,75 @@ def test_orientation_flag_persists_through_session():
     loaded = Sheet.from_dict(original.to_dict())
     assert loaded.rotate_180_for_archive is True
     assert loaded.form_type == photo_form.FORM_ID
+
+
+@pytest.mark.parametrize('tall_header', [False, True])
+def test_real_import_withholds_suggestions_for_crossed_out_clocks(tall_header, tmp_path):
+    from PIL import ImageFont
+
+    from app.ocr import scan_page
+    from app.review import mark_row_reviewed
+    from app.smoke import single_pair_fixture
+
+    page, rows = single_pair_fixture(tall_header)
+    draw = ImageDraw.Draw(page)
+    if tall_header:
+        strokes = {
+            'faint': ((8, 19, 111, 19),),
+            'dash': ((8, 23, 110, 23),),
+            'shallow': ((8, 26, 111, 14),),
+            'edge': ((7, 41, 111, 41),),
+            'underline': ((7, 36, 111, 36),),
+        }
+        expected = ('10:23P', '6:45A')
+    else:
+        strokes = {
+            'horizontal': ((8, 22, 108, 22),),
+            'low': ((8, 28, 108, 28),),
+            'diagonal': ((8, 39, 108, 9),),
+            'cross': ((8, 39, 108, 9), (8, 9, 108, 39)),
+            'underline': ((8, 40, 108, 40),),
+        }
+        expected = ('8:41A', '3:19P')
+    scenarios = ('clean', 'blank', *strokes)
+    for row, (top, _) in enumerate(rows):
+        scenario = scenarios[row % 7]
+        if tall_header:
+            ink = (55, 57, 64) if row < 7 else (27, 52, 131)
+            font = ImageFont.load_default(size=21 if row < 7 else 26)
+            text_x, text_y = 21, 6
+        else:
+            ink = (25, 45, 140) if row < 7 else (55, 55, 55)
+            font = ImageFont.load_default(size=25)
+            text_x, text_y = 15, 8
+        for left, text in zip((265, 390), expected, strict=True):
+            draw.rectangle((left + 2, top + 2, left + 121, top + 43), fill='white')
+            if scenario == 'blank':
+                continue
+            if scenario != 'dash':
+                draw.text((left + text_x, top + text_y), text, font=font, fill=ink)
+            for x1, y1, x2, y2 in strokes.get(scenario, ()):
+                stroke = (174, 176, 181) if scenario == 'faint' else ink
+                draw.line((left + x1, top + y1, left + x2, top + y2), fill=stroke, width=2)
+
+    source = tmp_path / 'fictional-crossed-clocks.png'
+    page.save(source)
+    sheet = scan_page(str(source), page)
+
+    assert len(sheet.review_boxes) == 14
+    for row, day in enumerate(sheet.days):
+        scenario = scenarios[row % 7]
+        for field, time in zip(('in1', 'out1'), expected, strict=True):
+            observation = day.observations[field]
+            if scenario in ('clean', 'edge', 'underline'):
+                assert observation['proposal'] == time
+            elif scenario == 'blank':
+                assert observation['status'] == 'blank'
+            else:
+                assert observation['status'] != 'blank'
+                assert not observation['proposal']
+        assert not (day.in1 or day.out1 or day.in2 or day.out2)
+
+    assert sheet.days[2].observations['in1']['status'] == 'possible-strike-through'
+    with pytest.raises(ValueError, match='Writing needs a time'):
+        mark_row_reviewed(sheet, 2)

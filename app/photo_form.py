@@ -144,6 +144,45 @@ def _has_ink(cell: Image.Image) -> bool:
     return int(np.count_nonzero(mask)) >= 25 and (connected >= 2 or bool(np.any(stats[1:, cv2.CC_STAT_AREA] >= 20)))
 
 
+def _has_strike_through(cell: Image.Image) -> bool:
+    """Find a long stroke through the writing before offering a suggestion."""
+    height = 48
+    width = round(height * cell.width / cell.height)
+    gray = cv2.resize(np.asarray(cell.convert('L')), (width, height), interpolation=cv2.INTER_AREA)
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))
+    paper = cv2.morphologyEx(gray, cv2.MORPH_CLOSE, kernel)
+    ink = cv2.subtract(paper, gray) > max(9, .06 * float(np.median(paper)))
+    lines = cv2.HoughLinesP(np.uint8(ink) * 255, 1, np.pi / 180,
+                            threshold=round(.39 * width), minLineLength=round(.69 * width),
+                            maxLineGap=max(2, round(.035 * width)))
+    if lines is None:
+        return False
+
+    # Registration can leave a faint printed rule at either row edge.
+    # Require supporting ink in the interior of the cell.
+    top, bottom = round(.12 * height), round(.86 * height)
+    left, right = round(.18 * width), round(.82 * width)
+    y, x = np.nonzero(ink[top:bottom, left:right])
+    y += top
+    x += left
+    for x1, y1, x2, y2 in lines[:, 0]:
+        if abs(x2 - x1) < .68 * width or abs(y2 - y1) > .75 * height:
+            continue
+        slope = (y2 - y1) / (x2 - x1)
+        center = y1 + slope * (width / 2 - x1)
+        if not .20 * height < center < .80 * height:
+            continue
+        distance = y - (y1 + slope * (x - x1))
+        above = (-.42 * height < distance) & (distance < -3)
+        below = (3 < distance) & (distance < .42 * height)
+        # Require ink on both sides of the stroke. A printed rule or an
+        # underline below the time cannot supply this evidence on its own.
+        if (np.count_nonzero(above) >= 14 and np.count_nonzero(below) >= 14
+                and np.ptp(x[above]) >= .18 * width and np.ptp(x[below]) >= .18 * width):
+            return True
+    return False
+
+
 def _time_candidate(cell: Image.Image) -> str:
     """A proposed transcription, *not* automatically a clock punch."""
     from .ocr import _cleanup_time, _ocr_cell
@@ -253,7 +292,9 @@ def scan_this_form(sheet, image: Image.Image) -> bool:
         else:
             for i, secondary in zip(second_pass, extra):
                 decisions[i], preferred[i] = corroborate_clock(readings[i], secondary, decisions[i])
-    for i, ((row,field,_cell), candidates, decision) in enumerate(zip(cells,readings,decisions)):
+    for i, ((row,field,cell), candidates, decision) in enumerate(zip(cells,readings,decisions)):
+        if decision.value and _has_strike_through(cell):
+            decision = replace(decision, value='', status='possible-strike-through')
         day = sheet.days[row]
         day.recognized[field] = decision.raw
         day.observations[field] = {

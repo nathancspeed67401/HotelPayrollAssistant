@@ -209,6 +209,30 @@ def _has_overlapping_ink_colors(cell: Image.Image) -> bool:
     return min(np.count_nonzero(first & near_second), np.count_nonzero(second & near_first)) >= 9
 
 
+def _has_stacked_ink(cell: Image.Image) -> bool:
+    """Find two broad, vertically separated ink bands in the same clock cell."""
+    width = round(48 * cell.width / cell.height)
+    gray = np.asarray(cell.convert('L').resize((width, 48), Image.Resampling.BILINEAR))
+    paper = cv2.morphologyEx(gray, cv2.MORPH_CLOSE, np.ones((15, 15), np.uint8))
+    ink = cv2.subtract(paper, gray) >= max(12, .08 * float(np.median(paper)))
+    ink[:4] = ink[-4:] = False
+    ink[:, :8] = ink[:, -8:] = False
+    rows = np.flatnonzero(ink.sum(axis=1) >= 3)
+    bands = []
+    for group in np.split(rows, np.flatnonzero(np.diff(rows) > 1) + 1):
+        if len(group) < 6:
+            continue
+        columns = np.flatnonzero(ink[group].any(axis=0))
+        if columns[-1] - columns[0] >= .22 * width and np.count_nonzero(ink[group]) >= 40:
+            bands.append((group, columns))
+    if len(bands) != 2:
+        return False
+    (top, top_columns), (bottom, bottom_columns) = bands
+    gap = bottom[0] - top[-1] - 1
+    overlap = min(top_columns[-1], bottom_columns[-1]) - max(top_columns[0], bottom_columns[0])
+    return 2 <= gap <= 9 and overlap >= .18 * width and len(top) + len(bottom) >= 15
+
+
 def _has_strike_through(cell: Image.Image) -> bool:
     """Find a long stroke through the writing before offering a suggestion."""
     height = 48
@@ -432,6 +456,8 @@ def scan_this_form(sheet, image: Image.Image) -> bool:
             decision = replace(decision, value='', status='possible-strike-through')
         if decision.value and _has_overlapping_ink_colors(cell):
             decision = replace(decision, value='', status='possible-overwrite')
+        if decision.value and _has_stacked_ink(cell):
+            decision = replace(decision, value='', status='possible-stacked-writing')
         day = sheet.days[row]
         day.recognized[field] = decision.raw
         day.observations[field] = {

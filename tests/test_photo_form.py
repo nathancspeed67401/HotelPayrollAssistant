@@ -410,3 +410,60 @@ def test_overlapping_pen_colors_require_review(monkeypatch, tmp_path):
             assert not getattr(day, field)
     with pytest.raises(ValueError, match='Writing needs a time'):
         mark_row_reviewed(sheet, 1)
+
+
+def test_two_stacked_clock_lines_require_explicit_review(monkeypatch, tmp_path):
+    from types import SimpleNamespace
+
+    from PIL import ImageFont
+
+    from app.line_ocr import Reading
+    from app.ocr import scan_page
+    from app.review import mark_row_reviewed
+    from app.smoke import single_pair_fixture
+
+    engine = SimpleNamespace(recognize=lambda cells, views: [
+        [Reading('9:41A', .99, .98, 'raw')] for _ in cells])
+    monkeypatch.setattr('app.line_ocr.get_recognizer', lambda: engine)
+    page, rows = single_pair_fixture()
+    draw = ImageDraw.Draw(page)
+    small = ImageFont.load_default(size=16)
+    normal = ImageFont.load_default(size=21)
+    ink = (31, 39, 80)
+
+    for row, (top, _) in enumerate(rows):
+        kind = row % 7
+        for left in (265, 390):
+            draw.rectangle((left + 2, top + 2, left + 121, top + 43), fill='white')
+            if kind == 3:
+                continue
+            if kind in (0, 1):
+                first_ink = (156, 160, 178) if kind == 1 else ink
+                draw.text((left + 17, top + 2), '8:17A', font=small, fill=first_ink)
+                draw.text((left + 20, top + 21), '9:41A', font=normal, fill=ink)
+            else:
+                draw.text((left + 17, top + 10), '9:41A', font=normal, fill=ink)
+            if kind in (4, 5):
+                y = top + (35 if kind == 4 else 23)
+                draw.line((left + 9, y, left + 109, y), fill=ink, width=2)
+
+    path = tmp_path / 'fictional-stacked-clock-lines.png'
+    page.save(path)
+    sheet = scan_page(str(path), page)
+    assert len(sheet.review_boxes) == 14
+    for row, day in enumerate(sheet.days):
+        for field in ('in1', 'out1'):
+            observation = day.observations[field]
+            if row % 7 in (0, 1):
+                assert observation['status'] == 'possible-stacked-writing'
+                assert not observation['proposal']
+            elif row % 7 == 3:
+                assert observation['status'] == 'blank'
+            elif row % 7 == 5:
+                assert observation['status'] == 'possible-strike-through'
+                assert not observation['proposal']
+            else:
+                assert observation['proposal'] == '9:41A'
+            assert not getattr(day, field)
+    with pytest.raises(ValueError, match='Writing needs a time'):
+        mark_row_reviewed(sheet, 0)

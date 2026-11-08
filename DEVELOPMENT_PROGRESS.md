@@ -2,6 +2,51 @@
 
 **Engineering candidate based on v0.5.2. The installer is verified for supervised testing with fictional data. Live payroll acceptance is open.**
 
+## Two clock entries in one cell
+
+The offline photo importer withholds a suggested time when the same cell
+contains two broad bands of writing across the same part of the cell, with a clear
+vertical gap. The existing row review requires a deliberate entry or
+blank confirmation. The check uses the unaltered crop and supplies no
+new reading or value.
+
+Across 12 fictional photo variants, suggestions on cells containing two
+clocks fell from five to one. All 131 suggestions on single-clock
+controls were preserved, including underlined times, small writing and
+stray dots. Blank, dash and crossed-out controls produced zero suggestions.
+The remaining missed case limits this check to clearly separated bands.
+
+The baseline was draft head `ec115da0a613f0049c52ee76c17994dacd50fbe9`.
+The frozen code and test tree was `866eb5f0541de9b7f46db90647de15ba1ef53d79`.
+Both ran the same offline import path, pinned models and scorer.
+Every scored counter matched.
+
+| Photo set | Exact literal reads | Correct complete suggestions | Manual entries | Wrong raw reads | Unsafe suggestions |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Development originals | 115/151 | 32/50 | 119 | 5 | 0 |
+| Development dimmed | 116/151 | 29/50 | 122 | 7 | 0 |
+| Development perspective | 117/151 | 30/50 | 121 | 8 | 0 |
+| Reserved originals | 40/65 | 7/26 | 58 | 3 | 0 |
+
+There were zero autofilled punches. The four reserved originals were scored
+in aggregate after the candidate was frozen. The offline suite passed 157
+tests and the app self-test. Twelve GUI tests were skipped without a
+display. Production accuracy still requires fresh photos from different
+writers with independently checked labels.
+
+The separate contrast-mask probe compared two thresholds in a glyph-width
+band and looked for a competing complete reading. At the stronger cutoff,
+one of 94 suggestions on fictional overwrites had a confident conflict.
+The same rule also flagged one correct suggestion on development originals
+and one on dimmed photos, while missing the labeled corrections. Keep
+this approach experimental.
+
+Next, test a view that separates pen color from local paper color while
+keeping dark neutral ink. Compare it with the current grayscale contrast
+view on development misses, using pale colored ink, graphite, shadow, and
+blank paper controls. Require independent whole-clock support before a
+new complete suggestion can be considered.
+
 ## Overlapping pen colors
 
 The offline photo importer now withholds a complete time suggestion when

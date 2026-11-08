@@ -2,6 +2,60 @@
 
 **Engineering candidate based on v0.5.2. The installer is verified for supervised testing with fictional data. Live payroll acceptance is open.**
 
+## Review-only fallback when the primary reader fails
+
+If the primary model is unavailable, the offline clock reader can now
+supply a literal transcription for review when its two scale views agree
+and every character clears the confidence floor. The fallback preserves
+written minutes and AM/PM exactly as read and excludes detected
+strike-throughs. It creates no time suggestion or filled punch.
+
+The frozen code and test tree was `e037d1ada7e13a4f4ec80bc1aad477ae6a290287`.
+The baseline was draft head `9bc690704be2b3af803441f81ff17bda2727bff6`.
+Both used the same registered import path and unchanged scorer. Pointing
+the primary reader at a missing model gave these development results.
+
+| Photo set | Exact literal reads | Correct complete suggestions | Manual entries | Wrong raw reads |
+| --- | ---: | ---: | ---: | ---: |
+| Development originals | 0/151 → 4/151 | 0/50 | 151 | 0 |
+| Development dimmed | 0/151 → 7/151 | 0/50 | 151 | 0 |
+| Development perspective | 0/151 → 6/151 | 0/50 | 151 | 0 |
+
+The fallback improved literal transcription during the simulated outage.
+Every outage run had zero unsafe suggestions and zero autofilled punches.
+A lower threshold produced wrong raw reads on development originals.
+
+With both readers present, all counters matched the baseline.
+
+| Photo set | Exact literal reads | Correct complete suggestions | Manual entries | Wrong raw reads |
+| --- | ---: | ---: | ---: | ---: |
+| Development originals | 115/151 | 32/50 | 119 | 5 |
+| Development dimmed | 116/151 | 29/50 | 122 | 7 |
+| Development perspective | 117/151 | 30/50 | 121 | 8 |
+| Reserved originals | 40/65 | 7/26 | 58 | 3 |
+
+Every normal run had zero unsafe suggestions and zero autofilled punches.
+The four reserved originals were scored in aggregate after freezing the
+candidate. Fresh photos from different writers with independently checked
+labels are still required for the 98% acceptance test.
+
+The offline Linux headless suite passed 154 tests and the application
+self-test. New fixtures cover primary and dual-reader outages,
+conflicting times, blank and crossed-out cells, and agreement that
+preserves incomplete minutes and AM/PM.
+
+A same-row divider experiment limited outside ink to connected components
+that originated inside the punch and matched its pen color. It admitted
+three original-development crops and recovered zero reads or suggestions
+across the original, dim and perspective runs. A general disagreement veto
+also withheld valid suggestions and was discarded.
+
+Next, measure whether a residual printed divider inside the registered
+crop is read as a digit. Test a local rule mask that uses printed geometry,
+retains colored pen ink, and samples only the original crop. Compare
+exact reads, complete suggestions, and wrong reads on development photos
+and include neighboring ink, blank and faint-pencil controls.
+
 ## Short cancellation strokes and blur experiment
 
 The single-pair importer now also checks for a short, continuous stroke

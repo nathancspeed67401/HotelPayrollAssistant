@@ -86,6 +86,18 @@ def _literal(reading: Reading) -> tuple[str, bool]:
     return clock_key(reading.text), sum(ch.isdecimal() for ch in reading.text) >= 3
 
 
+def review_transcription(readings: list[Reading]) -> Reading | None:
+    """Keep a strongly agreed literal reading for review during an outage."""
+    if len(readings) != 2:
+        return None
+    first, second = readings
+    key = _literal(first)
+    if (first.source == second.source or min(first.minimum, second.minimum) < .96
+            or not key[0] or key != _literal(second)):
+        return None
+    return max(readings, key=lambda reading: reading.minimum)
+
+
 def corroborate_clock(primary: list[Reading], secondary: list[Reading], original: Decision
                       ) -> tuple[Decision, Reading | None]:
     """Use independent weights to check the same ink. Only joint reads can be used."""

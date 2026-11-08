@@ -320,25 +320,34 @@ def scan_this_form(sheet, image: Image.Image) -> bool:
             else:
                 cells.append((row,field,cell))
     readings = [[] for _ in cells]
+    primary_failed = False
     if cells:
         try:
             readings = get_recognizer().recognize([cell for _,_,cell in cells],views=PHOTO_VIEWS)
         except LineOCRError as exc:
-            warnings.append(f'{exc}. Enter written punches from the photograph.')
+            primary_failed = True
+            warnings.append(f'{exc}. Any alternate reading is for review only. Enter punches from the photograph.')
     readings = [[replace(reading, text=photo_clock_text(reading.text)) for reading in candidates]
                 for candidates in readings]
     decisions = [choose_clock(candidates) for candidates in readings]
-    second_pass = [i for i, decision in enumerate(decisions) if readings[i] and not decision.value]
+    second_pass = [i for i, decision in enumerate(decisions)
+                   if primary_failed or (readings[i] and not decision.value)]
     preferred = {}
     if second_pass:
-        from .clock_ocr import corroborate_clock, get_clock_recognizer
+        from .clock_ocr import corroborate_clock, get_clock_recognizer, review_transcription
         try:
             extra = get_clock_recognizer().recognize([cells[i][2] for i in second_pass])
         except LineOCRError as exc:
             warnings.append(str(exc) + '. Verify unclear writing from the photograph.')
         else:
             for i, secondary in zip(second_pass, extra):
-                decisions[i], preferred[i] = corroborate_clock(readings[i], secondary, decisions[i])
+                if primary_failed:
+                    transcript = review_transcription(secondary)
+                    if transcript and not _has_strike_through(cells[i][2]):
+                        decisions[i] = replace(decisions[i], raw=transcript.text, status='alternate-reader-review')
+                        preferred[i] = transcript
+                else:
+                    decisions[i], preferred[i] = corroborate_clock(readings[i], secondary, decisions[i])
     for i, ((row,field,cell), candidates, decision) in enumerate(zip(cells,readings,decisions)):
         if decision.value and _has_strike_through(cell):
             decision = replace(decision, value='', status='possible-strike-through')

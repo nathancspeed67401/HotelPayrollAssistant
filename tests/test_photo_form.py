@@ -254,3 +254,59 @@ def test_real_import_withholds_short_strikes_that_bridge_clock_ink(tmp_path):
     assert all(not (day.in1 or day.out1 or day.in2 or day.out2) for day in sheet.days)
     with pytest.raises(ValueError, match='Writing needs a time'):
         mark_row_reviewed(sheet, 3)
+
+
+@pytest.mark.parametrize('alternate_available', [True, False])
+def test_photo_import_keeps_only_review_text_when_primary_reader_fails(
+        alternate_available, monkeypatch, tmp_path):
+    from types import SimpleNamespace
+
+    from PIL import ImageFont
+
+    from app.line_ocr import LineOCRError, Reading
+    from app.ocr import scan_page
+    from app.review import mark_row_reviewed
+    from app.smoke import single_pair_fixture
+
+    page, rows = single_pair_fixture()
+    top = rows[1][0]
+    draw = ImageDraw.Draw(page)
+    ink = (25, 45, 140)
+    draw.text((280, top + 8), '8:41A', font=ImageFont.load_default(size=25), fill=ink)
+    draw.line((273, top + 22, 373, top + 22), fill=ink, width=2)
+
+    def missing_primary():
+        raise LineOCRError('Primary reader missing')
+
+    def alternate(cells):
+        if not alternate_available:
+            raise LineOCRError('Alternate reader missing')
+        assert len(cells) == 3
+        return [
+            [Reading('23:00', .99, .98, 'clock-18'), Reading('2300', .99, .97, 'clock-23')],
+            [Reading('07:00', .99, .98, 'clock-18'), Reading('07:50', .99, .98, 'clock-23')],
+            [Reading('8:41A', .99, .98, 'clock-18'), Reading('8:41A', .99, .98, 'clock-23')],
+        ]
+
+    monkeypatch.setattr('app.line_ocr.get_recognizer', missing_primary)
+    monkeypatch.setattr('app.clock_ocr.get_clock_recognizer', lambda: SimpleNamespace(recognize=alternate))
+    source = tmp_path / 'fictional-reader-outage.png'
+    page.save(source)
+    sheet = scan_page(str(source), page)
+
+    assert len(sheet.review_boxes) == 14
+    agreed = sheet.days[0].observations['in1']
+    if alternate_available:
+        assert agreed['raw'] == '23:00'
+        assert agreed['status'] == 'alternate-reader-review'
+        assert agreed['transcription']['text'] == '23:00'
+    else:
+        assert not agreed['raw']
+    assert not sheet.days[0].observations['out1']['raw']
+    assert not sheet.days[1].observations['in1']['raw']
+    assert sheet.days[1].observations['in1']['status'] != 'blank'
+    assert sheet.days[2].observations['in1']['status'] == 'blank'
+    assert all(not obs.get('proposal') for day in sheet.days for obs in day.observations.values())
+    assert all(not (day.in1 or day.out1 or day.in2 or day.out2) for day in sheet.days)
+    with pytest.raises(ValueError, match='Writing needs a time'):
+        mark_row_reviewed(sheet, 0)

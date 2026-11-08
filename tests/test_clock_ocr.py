@@ -61,3 +61,20 @@ def test_bundled_second_reader_runs_offline():
     assert len(readings) == 1
     assert [r.source for r in readings[0]] == ['clock-18', 'clock-23']
     assert all(r.text == '' or r.text == '?' for r in readings[0])
+
+
+@pytest.mark.parametrize(('first', 'second', 'expected'), [
+    ('8P', '8:00P', None),
+    ('8:00', '8:00P', None),
+    ('8P', '8PM', '8P'),
+    ('8:00', '800', '8:00'),
+    ('8:00P', '8:00A', None),
+])
+def test_outage_transcription_preserves_written_information(first, second, expected):
+    from app.clock_ocr import review_transcription
+
+    reads = [reading(first, 'clock-18', .98), reading(second, 'clock-23', .97)]
+    result = review_transcription(reads)
+    assert (result.text if result else None) == expected
+    assert review_transcription([reads[0], reads[0]]) is None
+    assert review_transcription([reads[0], reading(second, 'clock-23', .95)]) is None

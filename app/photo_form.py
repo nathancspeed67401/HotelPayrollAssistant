@@ -235,9 +235,21 @@ def scan_this_form(sheet, image: Image.Image) -> bool:
             readings = get_recognizer().recognize([cell for _,_,cell in cells],views=PHOTO_VIEWS)
         except LineOCRError as exc:
             warnings.append(f'{exc}. Enter written punches from the photograph.')
-    for (row,field,cell),candidates in zip(cells,readings):
-        candidates = [replace(reading, text=photo_clock_text(reading.text)) for reading in candidates]
-        decision = choose_clock(candidates)
+    readings = [[replace(reading, text=photo_clock_text(reading.text)) for reading in candidates]
+                for candidates in readings]
+    decisions = [choose_clock(candidates) for candidates in readings]
+    second_pass = [i for i, decision in enumerate(decisions) if readings[i] and not decision.value]
+    preferred = {}
+    if second_pass:
+        from .clock_ocr import corroborate_clock, get_clock_recognizer
+        try:
+            extra = get_clock_recognizer().recognize([cells[i][2] for i in second_pass])
+        except LineOCRError as exc:
+            warnings.append(str(exc) + '. Verify unclear writing from the photograph.')
+        else:
+            for i, secondary in zip(second_pass, extra):
+                decisions[i], preferred[i] = corroborate_clock(readings[i], secondary, decisions[i])
+    for i, ((row,field,_cell), candidates, decision) in enumerate(zip(cells,readings,decisions)):
         day = sheet.days[row]
         day.recognized[field] = decision.raw
         day.observations[field] = {
@@ -245,6 +257,9 @@ def scan_this_form(sheet, image: Image.Image) -> bool:
             'candidates':[{'text':r.text,'confidence':r.confidence,'minimum':r.minimum,'source':r.source}
                           for r in candidates],
             'confidence_is_calibrated':False}
+        if transcript := preferred.get(i):
+            day.observations[field]['transcription'] = {'text': transcript.text,
+                                                        'confidence': transcript.confidence}
         if decision.value:
             warnings.append(f'Week {row//7+1} {DISPLAY[row%7]}, {field}: compare the suggested time with the photograph')
         else:

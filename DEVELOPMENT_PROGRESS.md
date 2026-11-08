@@ -52,12 +52,19 @@ Two primary views already read the correct numeric portion on 17 of the 37
 misses with a written meridiem. Six of those 17 had the correct A or P in at
 least one primary output. A public-font suffix classifier with projected
 crop boundaries recovered three of the misses and made four wrong guesses.
+With the pinned EMNIST Balanced natural glyphs and explicit no-suffix controls,
+the corresponding classifier got 1,428 of 1,800 public-glyph examples right.
+It recovered three development misses and made five wrong guesses under the
+tested agreement threshold. Reading four candidate suffix cuts with the
+medium and English line models recovered one extra complete clock when two
+views from each model agreed. This was an offline crop experiment.
 
-The next experiment should isolate the A/P mark using the final numeric
-glyph's position and test a classifier trained with natural handwritten
-glyphs and explicit no-suffix controls. Compare complete suggestions and
-wrong reads on the development split before considering an importer change.
-Use the reserved originals only for a frozen regression.
+The next development comparison should test writer-specific visual evidence
+from a small set of reviewed clock examples kept locally. Separate the
+calibration rows from the scored rows and test on additional sheets when
+writer identity can be verified. Measure gains for literal reads and
+complete suggestions independently, including no-suffix, corrected and
+crossed-out controls. Use the reserved originals only for a frozen regression.
 
 ## Clock-specific handwriting reader
 

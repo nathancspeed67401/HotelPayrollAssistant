@@ -511,3 +511,51 @@ def test_pale_colored_clock_strokes_require_review(tmp_path):
             assert not getattr(day, field)
     with pytest.raises(ValueError, match='Writing needs a time'):
         mark_row_reviewed(sheet, 1)
+
+
+def test_pale_color_cancellation_withholds_time_suggestion(monkeypatch, tmp_path):
+    from types import SimpleNamespace
+
+    from PIL import ImageFont
+
+    from app.line_ocr import Reading
+    from app.ocr import scan_page
+    from app.review import mark_row_reviewed
+    from app.smoke import single_pair_fixture
+
+    engine = SimpleNamespace(recognize=lambda cells, views: [
+        [Reading('8:41A', .99, .98, 'raw')] for _ in cells])
+    monkeypatch.setattr('app.line_ocr.get_recognizer', lambda: engine)
+    page, rows = single_pair_fixture()
+    font = ImageFont.load_default(size=25)
+    paper, pale = (232, 232, 232), (197, 249, 239)
+    ink = (51, 51, 51)
+    for row, (top, _) in enumerate(rows):
+        kind = row % 7
+        for left in (265, 390):
+            tile = Image.new('RGB', (119, 42), paper)
+            draw = ImageDraw.Draw(tile)
+            if kind not in (3, 4):
+                draw.text((13, 7), '8:41A', font=font, fill=ink)
+            if kind in (1, 2, 4, 5):
+                y = 36 if kind == 2 else 23
+                draw.line((7, y, 110, y), fill=ink if kind == 5 else pale, width=3)
+            page.paste(tile, (left + 2, top + 2))
+
+    path = tmp_path / 'fictional-pale-cancellation.png'
+    page.save(path)
+    sheet = scan_page(str(path), page)
+    assert len(sheet.review_boxes) == 14
+    for row, day in enumerate(sheet.days):
+        for field in ('in1', 'out1'):
+            observation = day.observations[field]
+            if row % 7 in (1, 5):
+                assert observation['status'] == 'possible-strike-through'
+                assert not observation['proposal']
+            elif row % 7 in (3, 4):
+                assert observation['status'] == 'blank'
+            else:
+                assert observation['proposal'] == '8:41A'
+            assert not getattr(day, field)
+    with pytest.raises(ValueError, match='Writing needs a time'):
+        mark_row_reviewed(sheet, 1)

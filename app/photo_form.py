@@ -250,6 +250,49 @@ def _has_stacked_ink(cell: Image.Image) -> bool:
     return 2 <= gap <= 9 and overlap >= .18 * width and len(top) + len(bottom) >= 15
 
 
+def _has_color_cancellation(cell: Image.Image) -> bool:
+    """Find a pale colored line crossing otherwise dark handwriting."""
+    width = round(cell.width * 48 / cell.height)
+    rgb = np.asarray(cell.convert('RGB').resize((width, 48), Image.Resampling.BILINEAR))
+    paper = cv2.GaussianBlur(cv2.medianBlur(rgb, 19), (5, 5), 0).astype('float32')
+    residual = (paper - rgb) * 255 / np.maximum(paper, 55)
+    chroma = residual.max(axis=2) - residual.min(axis=2)
+    gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
+    luminance_gap = cv2.cvtColor(paper, cv2.COLOR_RGB2GRAY) - gray
+    pale = (chroma >= 18) & (np.abs(luminance_gap) <= 13)
+    pale[:5] = pale[-5:] = False
+    pale[:, :7] = pale[:, -7:] = False
+    lines = cv2.HoughLinesP(np.uint8(pale) * 255, 1, np.pi / 180,
+                            threshold=round(.29 * width), minLineLength=round(.43 * width),
+                            maxLineGap=round(.08 * width))
+    if lines is None:
+        return False
+
+    background = cv2.morphologyEx(gray, cv2.MORPH_CLOSE, np.ones((15, 15), np.uint8))
+    dark = cv2.subtract(background, gray) >= max(14, .09 * float(np.median(background)))
+    dark[:6] = dark[-7:] = False
+    dark[:, :8] = dark[:, -8:] = False
+    y, x = np.nonzero(dark)
+    if len(x) < 30:
+        return False
+    ink_start, ink_end = np.percentile(x, (8, 92))
+    for x1, y1, x2, y2 in lines[:, 0]:
+        if abs(x2 - x1) < .43 * width or abs(y2 - y1) > 9:
+            continue
+        left, right = min(x1, x2), max(x1, x2)
+        overlap = min(right, ink_end) - max(left, ink_start)
+        if overlap < .75 * (ink_end - ink_start):
+            continue
+        distance = y - (y1 + (y2 - y1) / (x2 - x1) * (x - x1))
+        within = (x >= left) & (x <= right)
+        above = x[within & (-15 < distance) & (distance < -3)]
+        below = x[within & (3 < distance) & (distance < 15)]
+        # Underlines and colored rules lack dark writing on both sides.
+        if len(above) >= 18 and len(below) >= 18 and min(np.ptp(above), np.ptp(below)) >= .20 * width:
+            return True
+    return False
+
+
 def _has_strike_through(cell: Image.Image) -> bool:
     """Find a long stroke through the writing before offering a suggestion."""
     height = 48
@@ -469,7 +512,7 @@ def scan_this_form(sheet, image: Image.Image) -> bool:
                 else:
                     decisions[i], preferred[i] = corroborate_clock(readings[i], secondary, decisions[i])
     for i, ((row,field,cell), candidates, decision) in enumerate(zip(cells,readings,decisions)):
-        if decision.value and _has_strike_through(cell):
+        if decision.value and (_has_strike_through(cell) or _has_color_cancellation(cell)):
             decision = replace(decision, value='', status='possible-strike-through')
         if decision.value and _has_overlapping_ink_colors(cell):
             decision = replace(decision, value='', status='possible-overwrite')

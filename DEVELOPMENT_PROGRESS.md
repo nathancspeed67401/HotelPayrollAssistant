@@ -2,6 +2,52 @@
 
 **Engineering candidate based on v0.5.2. The installer is verified for supervised testing with fictional data. Live payroll acceptance is open.**
 
+## Pale colored cancellation strokes
+
+The offline photo importer withholds a clock suggestion when a pale
+colored line crosses darker handwriting. It measures the stroke against
+local paper color and requires dark writing above and below the stroke.
+The original crop and existing explicit review are used for disposition.
+
+Across 12 fictional photo variants, suggestions on 96 pale cancellations
+fell from 83 to 43. All 143 correct suggestions on clean, underlined,
+dotted and separate-pen controls were preserved. Blank cells, standalone
+dashes and dark cross-outs produced zero suggestions. Applying the old
+cancellation check to a color-enhanced image had also flagged an
+underline, so the draft uses the separate color-line geometry.
+
+The baseline was draft head `723154802ee077b7fcf79cc8270971b66ba2a8b1`.
+The frozen code and test tree was `c1927562bbe8e3175b951b243e9bc648f8ca305b`.
+Both ran the same offline import path, pinned models and scorer.
+Every scored counter matched.
+
+| Photo set | Exact literal reads | Correct complete suggestions | Manual entries | Wrong raw reads | Unsafe suggestions |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Development originals | 115/151 | 32/50 | 119 | 5 | 0 |
+| Development dimmed | 116/151 | 29/50 | 122 | 7 | 0 |
+| Development perspective | 117/151 | 30/50 | 121 | 8 | 0 |
+| Reserved originals | 40/65 | 7/26 | 58 | 3 | 0 |
+
+There were zero autofilled punches. The four reserved originals were scored
+in aggregate after freezing the candidate. The offline suite passed 159
+tests and the app self-test. Twelve GUI tests were skipped without a
+display. Production accuracy requires fresh photos from different writers
+with independently checked labels.
+
+In the separate pale-transcription experiment, the intact primary reader
+and a color-normalized independent reader jointly recovered 12 exact
+fictional literals, including nine with missing minutes or meridiem
+preserved. The blank, crossed-out, overwritten and conflicting controls
+received no new text or suggestions. This limited review-only path stays
+experimental.
+
+Next, test linking short collinear color fragments across gaps where
+darker handwriting obscures the cancellation stroke. Most misses in the
+fictional crop diagnostic had no detected line. Require the same ink color
+on both fragments and retain dark-writing evidence on both sides. Compare
+against the current guard on development and fictional crops with
+underlines, neighboring marks and JPEG artifacts.
+
 ## Pale colored writing
 
 The offline importer now checks for aligned color strokes when a clock

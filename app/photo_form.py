@@ -145,16 +145,33 @@ def _has_ink(cell: Image.Image) -> bool:
 
 
 def _has_faint_ink(cell: Image.Image) -> bool:
-    """Find coherent low-contrast strokes in an otherwise blank-looking cell."""
+    """Find coherent strokes in an otherwise blank-looking cell."""
     gray = np.asarray(cell.convert('L'))
     if min(gray.shape) < 24:
         return False
-    gray = gray[5:-5, 8:-8]
-    height, width = gray.shape
+    interior = np.s_[5:-5, 8:-8]
+    gray = gray[interior]
     paper = cv2.GaussianBlur(gray, (21, 21), 0).astype('int16')
     contrast = paper - gray
-    mask = np.uint8((contrast >= 4) & (contrast <= 18))
-    _, _, stats, centers = cv2.connectedComponentsWithStats(mask)
+    if _has_aligned_strokes((contrast >= 4) & (contrast <= 18)):
+        return True
+
+    # A pale colored stroke can have the same luminance as its paper.
+    # Estimate the local paper by median so bright ink channels don't
+    # spread their color into the surrounding paper estimate.
+    rgb = np.asarray(cell.convert('RGB'))
+    diameter = max(7, round(cell.height * .46) | 1)
+    local_paper = cv2.medianBlur(rgb, diameter)
+    local_paper = cv2.GaussianBlur(local_paper, (5, 5), 0)[interior].astype('float32')
+    residual = (local_paper - rgb[interior]) * 255 / np.maximum(local_paper, 55)
+    darkest = residual.max(axis=2)
+    chroma = darkest - residual.min(axis=2)
+    return _has_aligned_strokes((chroma >= 16) & (darkest >= 12))
+
+
+def _has_aligned_strokes(mask: np.ndarray) -> bool:
+    height, width = mask.shape
+    _, _, stats, centers = cv2.connectedComponentsWithStats(np.uint8(mask))
     strokes = []
     for index, (x, y, w, h, area) in enumerate(stats[1:], 1):
         if (x == 0 or y == 0 or x + w >= width or y + h >= height or w < 2

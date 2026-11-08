@@ -467,3 +467,47 @@ def test_two_stacked_clock_lines_require_explicit_review(monkeypatch, tmp_path):
             assert not getattr(day, field)
     with pytest.raises(ValueError, match='Writing needs a time'):
         mark_row_reviewed(sheet, 0)
+
+
+def test_pale_colored_clock_strokes_require_review(tmp_path):
+    from PIL import ImageFont
+
+    from app.ocr import scan_page
+    from app.review import mark_row_reviewed
+    from app.smoke import single_pair_fixture
+
+    page, rows = single_pair_fixture()
+    font = ImageFont.load_default(size=24)
+    for row, (top, _) in enumerate(rows):
+        for col, left in enumerate((265, 390)):
+            kind = row % 7
+            paper, pen = (
+                ((232, 232, 232), (197, 249, 239)),
+                ((225, 235, 244), (252, 220, 243)),
+            )[col]
+            tile = Image.new('RGB', (119, 42), paper)
+            draw = ImageDraw.Draw(tile)
+            if kind in (1, 2):
+                draw.text((12, 7), '8:41A' if col == 0 else '3:19P', font=font, fill=pen)
+            elif kind == 3:
+                for x in range(tile.width):
+                    shade = .75 + .25 * x / tile.width
+                    draw.line((x, 0, x, tile.height), fill=tuple(round(c * shade) for c in paper))
+            elif kind == 4:
+                for x, y in ((13, 12), (30, 23), (42, 28), (69, 18), (88, 27)):
+                    draw.line((x, y, x, y + 2), fill=pen)
+            page.paste(tile, (left + 2, top + 2))
+
+    path = tmp_path / 'fictional-pale-colored-punches.png'
+    page.save(path)
+    sheet = scan_page(str(path), page)
+    assert len(sheet.review_boxes) == 14
+    for row, day in enumerate(sheet.days):
+        expected = 'possible-faint-ink' if row % 7 in (1, 2) else 'blank'
+        for field in ('in1', 'out1'):
+            assert day.observations[field]['status'] == expected
+            assert not day.observations[field].get('proposal')
+            assert not day.recognized[field]
+            assert not getattr(day, field)
+    with pytest.raises(ValueError, match='Writing needs a time'):
+        mark_row_reviewed(sheet, 1)

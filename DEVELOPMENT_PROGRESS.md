@@ -2,6 +2,52 @@
 
 **Engineering candidate based on v0.5.2. The installer is verified for supervised testing with fictional data. Live payroll acceptance is open.**
 
+## Pale colored writing
+
+The offline importer now checks for aligned color strokes when a clock
+cell looks blank in grayscale. It compares each RGB channel with the
+local median paper color and uses the existing faint-writing review
+status. A flagged cell needs an explicit review decision and supplies no
+transcription, suggestion or field value.
+
+Across eight fictional photo variants, all 20 pale colored punches went
+from blank to explicit review. All 68 blank, shadow and speckle controls
+stayed blank. The graphite and regular ink controls kept all 48 complete
+suggestions. Crossed-out, missing-meridiem and conflicting-time controls
+produced zero suggestions. Six pale punches in the combined color-and-shadow
+controls still appeared blank.
+
+The baseline was draft head `65bfb44be1146cd63906f7a6c9279c906b1fe81a`.
+The frozen code and test tree was `7108b77aa1e8743e7d9d175338dbd086b6851f80`.
+Both ran the same offline import path, pinned models and scorer.
+Every scored counter matched.
+
+| Photo set | Exact literal reads | Correct complete suggestions | Manual entries | Wrong raw reads | Unsafe suggestions |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Development originals | 115/151 | 32/50 | 119 | 5 | 0 |
+| Development dimmed | 116/151 | 29/50 | 122 | 7 | 0 |
+| Development perspective | 117/151 | 30/50 | 121 | 8 | 0 |
+| Reserved originals | 40/65 | 7/26 | 58 | 3 | 0 |
+
+There were zero autofilled punches. The four reserved originals were scored
+in aggregate after the candidate was frozen. The offline suite passed 158
+tests and the app self-test. Twelve GUI tests were skipped without a
+display. Production accuracy still requires fresh photos from different
+writers with independently checked labels.
+
+Replacing the recognition view with either color transform lost one exact
+read on development originals and yielded one unsafe suggestion on dimmed
+photos. Both changes stay experimental. In the fictional crop probe, the
+primary reader recognized all 12 pale clocks on both its usual views and
+the median color view, while the independent reader failed the agreement
+check. The primary also read all six crossed-out clocks as plausible times.
+
+Next, compare review-only readings for cells newly flagged by the color
+check. Require the same whole literal on the intact crop and an independent
+reader, and test a cancellation check on the intact and color-normalized
+crops before exposing text. Use pale same-pen corrections and shadowed
+cross-outs alongside clean clocks. Keep suggestions on the existing path.
+
 ## Two clock entries in one cell
 
 The offline photo importer withholds a suggested time when the same cell

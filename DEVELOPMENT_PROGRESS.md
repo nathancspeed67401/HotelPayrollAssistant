@@ -1,6 +1,54 @@
-# Development progress · November 7, 2026
+# Development progress · November 8, 2026
 
 **Engineering candidate based on v0.5.2. The installer is verified for supervised testing with fictional data. Live payroll acceptance is open.**
+
+## Handwriting OCR checkpoint
+
+The single-pair importer retries the printed weekday labels in a shifted band
+when the first crop supplies too few anchors. Either pass rejects contradictory
+weekday labels. The native clock crop uses bicubic resizing before line
+recognition. Two synthetic regression cases check recovery and rejection when
+a weekday is out of order. The tested code and test files are identified by
+Git tree `09e9417c882daae2d7f8892de2baa15393ada1f5` before this note.
+
+The baseline is draft PR #5 head `749f6b1bb5cb3322a45e74a6997b9742dfc50c6a`.
+Both versions used the same pinned models, original photo hashes, labels,
+scorer and offline import path.
+
+| Photo set | Aligned sheets | Exact handwritten reads | Correct complete suggestions | Punches requiring entry |
+| --- | ---: | ---: | ---: | ---: |
+| Development originals | 14/14 → 14/14 | 114/151 → 115/151 | 32/50 → 32/50 | 119 → 119 |
+| Development dimmed | 13/14 → 14/14 | 113/151 → 116/151 | 26/50 → 29/50 | 125 → 122 |
+| Development perspective | 13/14 → 13/14 | 114/151 → 114/151 | 27/50 → 27/50 | 124 → 124 |
+| Reserved originals | 4/4 → 4/4 | 40/65 → 40/65 | 7/26 → 7/26 | 58 → 58 |
+
+The reserved regression ran after freezing the candidate. The candidate
+produced zero unsafe suggestions and zero autofilled punches in these runs.
+Wrong raw reads went from six to five on development originals and stayed
+at three on the reserved set. The 61.5% reserved exact result uses first-pass
+labels. The 98% target still requires independently checked labels and fresh
+photos from different writers.
+
+Linux verification with outbound networking blocked passed 142 tests and
+the application self-test. This run used the headless suite and deferred
+the desktop and Windows build checks to the release workflow.
+
+The experiments with extended crops sometimes included strokes from adjacent
+rows. The stricter crop and extra scale variants yielded few safe recoveries.
+A clock-constrained decoder produced plausible wrong times without enough
+visual evidence. The separate PP-OCRv6 small and English PP-OCRv5 models and
+the small clock model fine-tuned on development photos performed worse as
+standalone readers. Four photo-grouped validation folds for that fine-tune
+produced 112–113 exact reads and 29–30 correct suggestions when combined
+with the primary reader, compared with 114 and 32 for the baseline. The
+public handwriting-font warm start showed a small transcription gain while
+losing suggestions. The draft keeps the existing model weights.
+
+The remaining investigation should target clipped strokes and ambiguous
+meridiem glyphs. Compare a distinct handwriting model on the development
+misses and measure false readings on crossed-out and ambiguous cells before
+attempting an importer change. Keep individual reserved predictions out of
+tuning and save only aggregate results in this repository.
 
 ## Clock-specific handwriting reader
 

@@ -169,16 +169,26 @@ _WEEKDAYS = {
 
 def _weekday_anchors_match(page, body, columns):
     """Check the day order against printed text outside the punch columns."""
+    result = _read_weekday_anchors(page, body, columns, 1.87, 1.03)
+    if result is not None:
+        return result
+    # Retry toward the clock divider when the first crop has too few weekday
+    # matches. A conflicting weekday always rejects the grid.
+    return _read_weekday_anchors(page, body, columns, 1.60, .75) is True
+
+
+def _read_weekday_anchors(page, body, columns, left_gap, right_gap) -> bool | None:
+    """Return True for matched rows, False for a conflict, or None if unclear."""
     w, h = page.size
     a, b = columns[0]
     next_a, next_b = columns[1]
     pitch = (next_a - a) * h * .5 + next_b - b
     # The weekday text is in the first printed column, two columns before
     # the clocks. This search band includes the margin beside the date rule.
-    band_left = (a, max(b - 1.87 * pitch, 1 + abs(a) * h))
-    band_right = (a, b - 1.03 * pitch)
+    band_left = (a, max(b - left_gap * pitch, 1 + abs(a) * h))
+    band_right = (a, b - right_gap * pitch)
     if band_right[1] - band_left[1] < w * .06:
-        return False
+        return None
     band = FormGrid(page.size, page.size, (band_left, band_right), tuple(body))
     row_height = 75
     strip = Image.new('L', (round(pitch * 2), row_height * 14), 255)
@@ -208,7 +218,9 @@ def _weekday_anchors_match(page, body, columns):
             return True
     # One printed weekday in each week pins the row order. Require a
     # second, separated anchor somewhere on a sheet with weak weekday print.
-    return all(anchors) and any(max(days) - min(days) >= 2 for days in anchors)
+    if all(anchors) and any(max(days) - min(days) >= 2 for days in anchors):
+        return True
+    return None
 
 
 def _fit_header_rows(rules, header_bounds, midx, h):

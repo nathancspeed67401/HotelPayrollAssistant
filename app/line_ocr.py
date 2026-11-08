@@ -244,14 +244,16 @@ class LineRecognizer:
     def recognize(self, images: list[Image.Image], views=VIEWS) -> list[list[Reading]]:
         import cv2
         result = [[] for _ in images]
+        photo_views = views == PHOTO_VIEWS
         for view in views:
+            interpolation = cv2.INTER_CUBIC if photo_views and view == 'raw' else cv2.INTER_LINEAR
             for start in range(0, len(images), 6):
                 batch = [prepare_view(image, view) for image in images[start:start+6]]
                 width = max(320, max(math.ceil(48*a.shape[1]/a.shape[0]) for a in batch))
                 tensor = np.zeros((len(batch), 3, 48, width), dtype='float32')
                 for i, a in enumerate(batch):
                     w = min(width, math.ceil(48*a.shape[1]/a.shape[0]))
-                    resized = cv2.resize(a, (w, 48)).astype('float32')/127.5-1
+                    resized = cv2.resize(a, (w, 48), interpolation=interpolation).astype('float32')/127.5-1
                     tensor[i, :, :, :w] = resized.transpose(2, 0, 1)
                 try:
                     predictions = self.session.run(None, {self.input_name: tensor})[0]

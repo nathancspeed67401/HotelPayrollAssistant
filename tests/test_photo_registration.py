@@ -97,6 +97,32 @@ def test_out_of_order_printed_weekdays_cannot_register():
     assert find_photo_grid(page) is None
 
 
+@pytest.mark.parametrize('wrong_weekday', [False, True])
+def test_registration_retries_weekday_labels_farther_right(wrong_weekday):
+    from PIL import ImageDraw, ImageFont
+
+    page, rows = single_pair_fixture()
+    draw = ImageDraw.Draw(page)
+    font = ImageFont.load_default(size=14)
+    weekdays = ('SAT.', 'SUN.', 'MON.', 'TUES.', 'WED.', 'THUR.', 'FRI.')
+    for row, (top, bottom) in enumerate(rows):
+        draw.rectangle((67, top + 2, 135, bottom - 2), fill='white')
+        label = 'FRI.' if wrong_weekday and row == 7 else weekdays[row % 7]
+        draw.text((141, top + 6), label, fill='black', font=font)
+
+    grid = find_photo_grid(page)
+    if wrong_weekday:
+        assert grid is None
+        return
+
+    assert grid is not None
+    assert len(grid.row_bounds) == len(rows)
+    for row, (top, bottom) in enumerate(rows):
+        upper_left, _, _, lower_left = grid.cell_quad(row, 0)
+        assert abs(upper_left[1] - top) < 5
+        assert abs(lower_left[1] - bottom) < 5
+
+
 def test_import_identifies_upside_down_form_from_grid_when_page_title_is_unreadable(monkeypatch, tmp_path):
     from app.ocr import scan_page
 

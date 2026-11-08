@@ -2,8 +2,8 @@
 
 | Release gate | Status |
 | --- | --- |
-| Ready for a supervised install with fictional data | Pending the verified setup for the release candidate |
-| Ready for live payroll | Pending handwriting acceptance, verified setup, Lynnette's Windows test and payroll owner approval |
+| Ready for a supervised install with fictional data | Yes. The job #31 installer checksum and source commit match. |
+| Ready for live payroll | Pending handwriting acceptance, Lynnette's Windows test and payroll owner approval |
 
 See [Development progress](DEVELOPMENT_PROGRESS.md) for OCR evidence and
 [Build status](BUILD_STATUS.md) for exact Windows job and artifact identity.

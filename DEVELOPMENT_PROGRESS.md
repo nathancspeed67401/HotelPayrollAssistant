@@ -1,6 +1,6 @@
 # Development progress · November 7, 2026
 
-**Engineering candidate based on v0.5.2. Supervised install and live payroll gates are open.**
+**Engineering candidate based on v0.5.2. The installer is verified for supervised testing with fictional data. Live payroll acceptance is open.**
 
 ## OCR and Windows release follow-up
 
@@ -94,16 +94,14 @@ failed for `fe4c8486f84a431884a76cb4ef961e43828ff14a`. Its first failing
 step still requires the signed-in log. [Job #29](https://circleci.com/gh/nathancspeed67401/HotelPayrollAssistant/29)
 passed for an earlier source commit.
 
-The payroll CircleCI connection required authentication. The unauthenticated
-artifact API returned HTTP 404 for both #29 and #31. The three #31 files
-needed are `Windows-Setup/HotelPayrollAssistant_Setup.exe`,
-`Verification/installer-sha256.txt` and `Verification/source-commit.txt`.
-Setup bytes and the checksum still need verification.
+The uploaded setup was independently hashed and matched the SHA-256
+supplied for job #31. The copied `source-commit.txt` matched the exact
+passing commit. [Build status](BUILD_STATUS.md) records the digest, size
+and embedded signature check. The installer is ready for supervised
+testing with fictional forms.
 
-A supervised install requires setup bytes, matching SHA-256 and the
-exact-source manifest from the same passing job. Live use additionally
-requires fresh OCR acceptance, Lynnette's Windows acceptance and the
-payroll owner's output and policy approval. The workweek follows the
+Live use requires fresh OCR acceptance, Lynnette's Windows acceptance
+and the payroll owner's output and policy approval. The workweek follows the
 Saturday–Friday printed rows. Review the 15-minute housekeeping break
 requirement manually for days over five hours and calculate from the actual
 punches. The workbook uses exact minutes with zero automatic deductions.
@@ -287,9 +285,8 @@ A GitHub commit status establishes the job outcome only. Use the named job's
 
 ## Remaining acceptance and OCR work
 
-1. Retrieve setup and the verification files from the exact candidate job.
-   Check the SHA-256 against the downloaded bytes and run an install, offline
-   use and uninstall on Windows 10/11 with fictional forms.
+1. Use the verified job #31 setup for the supervised install, offline
+   workflow and uninstall on Lynnette's Windows PC with fictional forms.
 2. Get a second visual pass of the private annotations. Keep the reserved
    originals, cleaned copies and augmentations in the same frozen split. Build
    a fresh writer-disjoint evaluation before relying on results for release.

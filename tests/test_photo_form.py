@@ -243,7 +243,7 @@ def test_real_import_withholds_short_strikes_that_bridge_clock_ink(tmp_path):
     sheet = scan_page(str(source), page)
 
     assert len(sheet.review_boxes) == 14
-    for row, field in ((3, 'in1'), (3, 'out1'), (10, 'in1')):
+    for row, field in ((3, 'in1'), (3, 'out1'), (10, 'in1'), (10, 'out1')):
         observation = sheet.days[row].observations[field]
         assert observation['status'] == 'possible-strike-through'
         assert not observation['proposal']

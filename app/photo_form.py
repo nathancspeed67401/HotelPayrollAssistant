@@ -199,7 +199,8 @@ def _bridges_handwritten_ink(ink: np.ndarray, x: np.ndarray, y: np.ndarray) -> b
             continue
         cols = np.arange(min(x1, x2), max(x1, x2) + 1)
         rows = np.rint(y1 + slope * (cols - x1)).astype(int)
-        if np.mean(line_ink[rows, cols]) < .90:
+        coverage = np.mean(line_ink[rows, cols])
+        if coverage < .90:
             continue
 
         distance = y - (y1 + slope * (x - x1))
@@ -224,9 +225,19 @@ def _bridges_handwritten_ink(ink: np.ndarray, x: np.ndarray, y: np.ndarray) -> b
             continue
         # Along a true cancellation the stroke continues through paper
         # between the crossed glyphs. An elongated digit alone cannot do that.
-        gap = (~upper & ~lower)[cols[ends[0]:starts[-1] + 1]]
+        interval = cols[ends[0]:starts[-1] + 1]
+        gap = (~upper & ~lower)[interval]
         if np.any(gap[:-2] & gap[1:-1] & gap[2:]):
             return True
+        # Dense writing can close the gap on one side of a cancellation.
+        # Require a continuous horizontal stroke through at least four
+        # crossings, plus a visible tail beyond the outer crossings.
+        tail = max(starts[0], len(cols) - 1 - ends[-1])
+        if len(starts) < 4 or abs(y2 - y1) > 4 or coverage < .98 or tail < .07 * width:
+            continue
+        for clear in (~upper[interval], ~lower[interval]):
+            if np.any(clear[:-2] & clear[1:-1] & clear[2:]):
+                return True
     return False
 
 

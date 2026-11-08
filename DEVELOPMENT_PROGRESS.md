@@ -2,6 +2,56 @@
 
 **Engineering candidate based on v0.5.2. The installer is verified for supervised testing with fictional data. Live payroll acceptance is open.**
 
+## Dense short cancellation strokes
+
+A dense clock entry can obscure one side of a short strike-through. The
+single-pair importer now withholds a suggestion in that case only when a
+nearly horizontal, continuous stroke intersects at least four separated
+ink groups, has a visible tail beyond the outer crossings, and passes
+through a clear interval on one side. The cell remains available for
+manual review.
+
+The last of four fictional short cancellations went from a suggestion to
+manual review. All 12 clean, underlined and printed-edge controls kept their
+correct suggestions. The offline Linux headless suite passed 154 tests and
+the application self-test, including the blank, crossed-out and conflicting
+time cases.
+
+The baseline was draft head `8b10b78129801ff9ac9e49e33d123f2b8261a313`.
+The frozen code and test tree was `2eb5df35723bf8d3c81391b58643d8a2e8cffc26`.
+Both used the same offline import path, pinned models and scorer. All
+private benchmark counters matched.
+
+| Photo set | Exact literal reads | Correct complete suggestions | Manual entries | Wrong raw reads |
+| --- | ---: | ---: | ---: | ---: |
+| Development originals | 115/151 | 32/50 | 119 | 5 |
+| Development dimmed | 116/151 | 29/50 | 122 | 7 |
+| Development perspective | 117/151 | 30/50 | 121 | 8 |
+| Reserved originals | 40/65 | 7/26 | 58 | 3 |
+
+Every private run recorded zero unsafe suggestions and zero autofilled
+punches. The four reserved originals were scored in aggregate after the
+candidate was frozen. Production accuracy still requires fresh photos
+from different writers and independently checked labels.
+
+The printed-divider experiment masked neutral vertical rules only inside
+the registered crop. The fictional checks kept colored pen pixels. The
+strict mask recovered two exact reads on the perspective variants.
+One of those reads had matching unaltered alternate-reader evidence.
+There was no gain on originals or dimmed photos under the strict mask.
+The relaxed mask added one exact read on dimmed photos and one wrong raw
+read plus an ambiguous-cell read on originals. Neither mask improved
+complete suggestions.
+A separate check requiring alternate-reader corroboration of a single
+visually confusable character also recovered no reads. Both remain
+experiments.
+
+Next, map character positions from both readers back to the original crop
+and test whether they point to the same ink when they disagree about a
+digit or suffix. Compare aligned evidence with current whole-clock
+agreement. Test original, faint, crossed-out and neighboring-ink controls
+and keep the reserved split for a frozen regression.
+
 ## Review-only fallback when the primary reader fails
 
 If the primary model is unavailable, the offline clock reader can now

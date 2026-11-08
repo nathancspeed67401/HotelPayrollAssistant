@@ -4,6 +4,7 @@
 
 | Windows Server 2022 job | Exact source | Status |
 | --- | --- | --- |
+| [CircleCI #32](https://circleci.com/gh/nathancspeed67401/HotelPayrollAssistant/32) | [`be16f5b5e20c3a608c1aa3531714f335056cfc23`](https://github.com/nathancspeed67401/HotelPayrollAssistant/commit/be16f5b5e20c3a608c1aa3531714f335056cfc23) | Passed. Installer file verification is pending. |
 | [CircleCI #31](https://circleci.com/gh/nathancspeed67401/HotelPayrollAssistant/31) | [`cbe6022463429fa6b42bd94613bb77ba0a448b0c`](https://github.com/nathancspeed67401/HotelPayrollAssistant/commit/cbe6022463429fa6b42bd94613bb77ba0a448b0c) | Passed |
 | [CircleCI #30](https://circleci.com/gh/nathancspeed67401/HotelPayrollAssistant/30) | `fe4c8486f84a431884a76cb4ef961e43828ff14a` | Failed. CircleCI shows one failed test, `test_partial_pay_period_date_is_not_copied_to_other_employees`. The assertion details require its signed-in log. |
 | [CircleCI #29](https://circleci.com/gh/nathancspeed67401/HotelPayrollAssistant/29) | `fbeb143768d359fb543aa0ca366fff35077e6d7b` | Passed on earlier source |
@@ -12,9 +13,15 @@
 The Windows workflow verifies the bundled OCR model, isolates the test
 executables from outbound traffic, runs pytest, builds the Inno Setup package,
 and checks installed offline import, review, export, restart and uninstall.
-GitHub's exact-commit status reports success for job #31.
+GitHub's exact-commit status reports success for jobs #31 and #32.
 
-## Verified installer
+To verify the draft candidate's installer, retrieve
+`Windows-Setup/HotelPayrollAssistant_Setup.exe`,
+`Verification/installer-sha256.txt` and `Verification/source-commit.txt`
+from job #32. Hash the downloaded executable, compare it with the supplied
+SHA-256 and match the full source SHA above.
+
+## Verified job #31 installer
 
 The uploaded `HotelPayrollAssistant_Setup.exe` is a 204,455,302 byte Windows
 Inno Setup package. Its SHA-256 was computed directly from the uploaded

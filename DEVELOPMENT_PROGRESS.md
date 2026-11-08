@@ -2,10 +2,87 @@
 
 **Engineering candidate based on v0.5.2. The installer is verified for supervised testing with fictional data. Live payroll acceptance is open.**
 
-## OCR and Windows release follow-up
+## Clock-specific handwriting reader
 
-[PR #5](https://github.com/nathancspeed67401/HotelPayrollAssistant/pull/5) is
-the engineering candidate. The tested source is
+The offline second reader in the draft candidate uses a small model trained
+on 48,000 fictional clock and noise examples composed from public EMNIST
+glyphs. The private timesheets and labels were used to evaluate recognition
+and tune the corroboration policy. The bundled model and the test fixtures
+contain public or fictional inputs.
+[PR #5](https://github.com/nathancspeed67401/HotelPayrollAssistant/pull/5)
+· [Tested source](https://github.com/nathancspeed67401/HotelPayrollAssistant/commit/be16f5b5e20c3a608c1aa3531714f335056cfc23)
+
+The offline trainer reproduced the bundled ONNX file byte for byte on Linux
+with PyTorch 2.6.0 CPU and ONNX 1.18.0.
+
+```sh
+python experiments/train_clock_reader.py --data "$EMNIST_BALANCED" --output "$CLOCK_MODEL"
+```
+
+The second reader checks uncertain readings on registered single-pair forms.
+A complete suggestion requires both readers to see the same written clock
+without a strong conflicting reading. A raw reading with strong character
+scores may appear for manual review. A suggested punch requires written
+minutes and AM/PM where applicable. Managers enter or deliberately accept
+each punch, review every row, and approve every sheet before export.
+
+| Private regression set | Registered | Exact raw | Correct suggestions / eligible | Manual entries | Wrong raw | Invalid raw |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Development originals | 14/14 | 112/151 → 114/151 | 28/50 → 32/50 | 123 → 119 | 6 → 6 | 33 → 31 |
+| Development dimmed | 13/14 | 109/151 → 113/151 | 24/50 → 26/50 | 127 → 125 | 7 → 7 | 31 → 27 |
+| Development perspective | 13/14 | 108/151 → 114/151 | 24/50 → 27/50 | 127 → 124 | 7 → 7 | 32 → 26 |
+| Reserved originals | 4/4 | 39/65 → 40/65 | 7/26 → 7/26 | 58 → 58 | 3 → 3 | 23 → 22 |
+
+Comparisons use the verified job #31 source as the baseline. All runs had
+zero wrong or unsafe suggestions, zero false blanks on readable punches and
+zero suggestions on crossed-out entries. Each distorted run missed four
+readable punches on a sheet that failed registration. Five clean blanks
+on the reserved originals went to review. Manual entries count readable
+punches without a correct complete suggestion. The reserved exact result
+was 61.5%. The 98% acceptance gate still requires fresh writer-disjoint
+photos with independently checked labels. All 19 original hashes matched
+the checkpoint with its existing 14 development, four reserved regression
+and one historical development sheet. The 532 labels are first-pass.
+
+The source tree was frozen before running the reserved sheets. Its Git
+tree `a100cbde62da8e718a91f887d3adf9646596992d` matches the candidate on
+GitHub. The Linux checks ran with outbound networking blocked. They passed
+152 tests (140 non-GUI and 12 desktop), the bundled-model self-test and
+the import, correction, approval, restart and export desktop self-test.
+The fictional evaluator found 128 correct suggestions, zero wrong
+suggestions and zero autofilled punches. The offline desktop batch imported
+22 fictional photos and eight PDFs, blocked the incomplete punch and
+unapproved export, and restored 30 approvals after restart. An independent
+OpenPyXL read reconciled 420 dated rows, 36,670 elapsed minutes and one
+overtime minute.
+
+```sh
+python -m pytest -q --ignore=tests/test_ui_safety.py
+python -m pytest -q tests/test_ui_safety.py
+python main.py --self-test
+python main.py --gui-self-test
+python experiments/evaluate_pipeline.py --manifest test_samples/ground_truth.json \
+  --output "$FICTIONAL_SUMMARY"
+python experiments/scan_real_forms.py --manifest "$MANIFEST" --originals "$ORIGINALS" \
+  --source-sha "$CANDIDATE" --split holdout --variant original --output "$PREDICTIONS"
+python experiments/evaluate_real_forms.py --manifest "$MANIFEST" --predictions "$PREDICTIONS" \
+  --split holdout --output "$SUMMARY"
+```
+
+The same private commands with `--split development` produced the original,
+dimmed and perspective development comparisons. The four reserved originals
+were used only after selecting the policy on the development sheets.
+
+Windows job #32 passed for the frozen source. Verification still needs the
+setup executable, SHA-256 file and source manifest from that same private
+job. The verified setup for a supervised fictional test is from job #31.
+Lynnette's Windows acceptance and payroll owner sign-off are open.
+[Windows job #32](https://circleci.com/gh/nathancspeed67401/HotelPayrollAssistant/32)
+· [Build status](BUILD_STATUS.md)
+
+## Job #31 baseline and prior OCR changes
+
+The source tested for the verified installer was
 [`cbe6022463429fa6b42bd94613bb77ba0a448b0c`](https://github.com/nathancspeed67401/HotelPayrollAssistant/commit/cbe6022463429fa6b42bd94613bb77ba0a448b0c).
 The baseline is `fe4c8486f84a431884a76cb4ef961e43828ff14a`. Main was
 `9a46c916334d56e9460a3939a2b7a497caf445d0` when this work started.

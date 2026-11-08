@@ -3,10 +3,13 @@
 | Release gate | Status |
 | --- | --- |
 | Ready for a supervised install with fictional data | Yes. The job #31 installer checksum and source commit match. |
-| Ready for live payroll | Pending handwriting acceptance, Lynnette's Windows test and payroll owner approval |
+| Ready for live payroll | Pending fresh handwriting acceptance, installer verification for the release source, Lynnette's Windows test and payroll owner approval |
 
 See [Development progress](DEVELOPMENT_PROGRESS.md) for OCR evidence and
 [Build status](BUILD_STATUS.md) for exact Windows job and artifact identity.
+The job #32 handwriting candidate read 40 of 65 reserved punches exactly.
+Its Windows build passed and the installer file still needs verification.
+The supervised test can use the verified job #31 setup and the fictional pack.
 
 ## Lynnette's Windows acceptance
 

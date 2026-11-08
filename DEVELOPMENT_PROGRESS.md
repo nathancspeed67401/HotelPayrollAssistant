@@ -2,6 +2,54 @@
 
 **Engineering candidate based on v0.5.2. The installer is verified for supervised testing with fictional data. Live payroll acceptance is open.**
 
+## Printed-grid retry under uneven lighting
+
+When the printed form header establishes orientation and the first grid
+registration fails, the importer retries registration with local illumination
+flattened. It uses the same printed rule, weekday and geometry checks.
+Punch recognition still receives the original photo pixels.
+
+The baseline is draft head `a71a7395f23d5f724dff9fecc03d110f0bb02063`.
+The frozen code and test tree is `ccec223bfcb63e9ad6ab0a12b7976f0e13591fa2`. Both sides
+ran the same offline import path, pinned models and scorer. All 19 archived
+and extracted original hashes matched the checkpoint manifest.
+
+| Photo set | Registered | Exact literal reads | Correct complete suggestions | Manual entries | Wrong raw reads |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Development originals | 14/14 → 14/14 | 115/151 → 115/151 | 32/50 → 32/50 | 119 → 119 | 5 → 5 |
+| Development dimmed | 14/14 → 14/14 | 116/151 → 116/151 | 29/50 → 29/50 | 122 → 122 | 7 → 7 |
+| Development perspective | 13/14 → 14/14 | 114/151 → 117/151 | 27/50 → 30/50 | 124 → 121 | 7 → 8 |
+| Reserved originals | 4/4 → 4/4 | 40/65 → 40/65 | 7/26 → 7/26 | 58 → 58 | 3 → 3 |
+
+There were zero wrong suggestions, zero unsafe suggestions and zero
+autofilled punches in both versions. The recovered perspective sheet added
+three correct complete suggestions and one wrong raw read that stayed in
+manual review. All 30 crossed-out development cells
+and all 14 reserved crossed-out cells went to review on the original photos.
+The reserved photos were scored in aggregate after freezing the candidate.
+Their labels are first-pass. No independently checked writer-disjoint
+acceptance set was available.
+
+The offline Linux headless suite passed 144 tests and the application
+self-test. Two fictional import tests verify recovery from a shadow,
+rejection of a missing row rule, use of original pixels, and review of a
+blank cell, a crossed-out mark and conflicting clock readings.
+
+The same-sheet calibration experiment compared alternating rows on the
+14 development originals. Eighteen of the 28 calibration folds had a
+written AM/PM example. Whole-clock templates changed no reads. Isolated
+suffix templates corroborated one additional exact transcription
+(115/151 to 116/151), with five wrong reads and 32/50 complete suggestions
+in both versions. The reference annotations were first-pass and writer
+identity was unverified, so the template experiment stays offline.
+
+Next, test whether masking only the visible suffix region drops A/P
+confidence while preserving the numeric read. Compare this signal on
+development cells with written A/P, no suffix, and overwritten ink.
+Use it only to corroborate a suffix already read from the intact crop.
+Measure literal reads and complete suggestions separately and freeze any
+candidate before the reserved regression.
+
 ## Handwriting OCR checkpoint
 
 The single-pair importer retries the printed weekday labels in a shifted band

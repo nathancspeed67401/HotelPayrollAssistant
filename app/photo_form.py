@@ -167,7 +167,7 @@ def scan_this_form(sheet, image: Image.Image) -> bool:
     from .core import DISPLAY
     from .ocr import _ocr_cell
     from .line_ocr import PHOTO_VIEWS, LineOCRError, choose_clock, get_recognizer, photo_clock_text
-    from .photo_grid import find_photo_grid
+    from .photo_grid import find_photo_grid, find_shadowed_photo_grid
     upright, rotation = _portrait(image)
     left, paper_top, right, paper_bottom = _paper_box(upright)
     paper = upright.crop((left, paper_top, right, paper_bottom))
@@ -182,6 +182,10 @@ def scan_this_form(sheet, image: Image.Image) -> bool:
         if grid is None:
             return False
         flip = True
+    if grid is None:
+        # The header established the form and orientation. Flatten shadows
+        # only for printed registration. OCR still sees the original pixels.
+        grid = find_shadowed_photo_grid(flipped_page if flip else page)
     if flip:
         paper = paper.rotate(180)
         page = flipped_page

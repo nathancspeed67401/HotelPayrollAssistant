@@ -187,3 +187,60 @@ def test_legacy_geometry_with_one_pair_of_headings_cannot_offer_times(tmp_path):
     assert not sheet.review_boxes
     assert all(not getattr(day, field) for day in sheet.days for field in TIME_FIELDS)
     assert all(not obs.get('proposal') for day in sheet.days for obs in day.observations.values())
+
+
+@pytest.mark.parametrize('missing_boundary', [False, True])
+def test_shadow_retry_requires_printed_rules_and_keeps_original_clock_crops(
+        missing_boundary, monkeypatch, tmp_path):
+    from types import SimpleNamespace
+
+    import numpy as np
+    from PIL import Image, ImageDraw
+
+    from app.line_ocr import Reading
+    from app.ocr import scan_page
+    from app.photo_form import normalized_page
+
+    page, rows = single_pair_fixture()
+    if missing_boundary:
+        _, y = rows[2]
+        ImageDraw.Draw(page).rectangle((65, y - 2, 900, y + 2), fill='white')
+
+    # A dark band compresses contrast in the printed table while the form
+    # title and the untouched paper still establish its orientation.
+    pixels = np.asarray(page).copy()
+    shade = np.linspace(22, 38, page.width)
+    pixels[288:1040] = shade[None, :, None] - 4 * (1 - pixels[288:1040] / 255)
+    photo = Image.fromarray(pixels)
+    pen = ImageDraw.Draw(photo)
+    for x in (290, 315, 340):
+        pen.line((x, rows[0][0] + 8, x + 4, rows[0][0] + 34), fill='black', width=4)
+    top = rows[1][0]
+    pen.line((415, top + 8, 480, top + 35), fill='black', width=4)
+    pen.line((415, top + 35, 480, top + 8), fill='black', width=4)
+    assert find_photo_grid(normalized_page(photo)) is None
+
+    def recognize(cells, views):
+        assert len(cells) == 2
+        assert all(np.median(np.asarray(cell)) < 45 for cell in cells)
+        return [[Reading('8:10A', .99, .98, 'raw'), Reading('8:40A', .92, .89, 'gray')],
+                [Reading('X', .90, .89, 'raw')]]
+
+    monkeypatch.setattr('app.line_ocr.get_recognizer', lambda: SimpleNamespace(recognize=recognize))
+    monkeypatch.setattr('app.clock_ocr.get_clock_recognizer', lambda: SimpleNamespace(
+        recognize=lambda cells: [[Reading('8:10A', .99, .98, 'clock-18')], []]))
+    path = tmp_path / 'shadowed-fictional.png'
+    photo.save(path)
+    sheet = scan_page(str(path), photo)
+
+    assert sheet.form_type == 'comfort_suites_single_pair'
+    if missing_boundary:
+        assert not sheet.review_boxes
+        assert sheet.days[0].observations['in1']['status'] == 'alignment-failed'
+    else:
+        assert len(sheet.review_boxes) == 14
+        assert sheet.days[0].observations['in1']['status'] == 'conflicting-readings'
+        assert sheet.days[1].observations['out1']['status'] == 'unreadable-or-invalid'
+        assert sheet.days[2].observations['in1']['status'] == 'blank'
+    assert all(not obs.get('proposal') for day in sheet.days for obs in day.observations.values())
+    assert all(not (day.in1 or day.out1 or day.in2 or day.out2) for day in sheet.days)

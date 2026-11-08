@@ -64,6 +64,14 @@ def find_photo_grid(page: Image.Image) -> FormGrid | None:
     return None
 
 
+def find_shadowed_photo_grid(page: Image.Image) -> FormGrid | None:
+    """Retry printed-grid detection after flattening local illumination."""
+    gray = np.asarray(page.convert('L'))
+    background = cv2.GaussianBlur(gray, (0, 0), 15)
+    flattened = cv2.divide(gray, np.maximum(background, 1), scale=255)
+    return find_photo_grid(Image.fromarray(flattened))
+
+
 def _grid_from_rules(page, binary, header_bounds):
     w, h = page.size
     segments = cv2.HoughLinesP(binary, 1, np.pi/1800, threshold=65,

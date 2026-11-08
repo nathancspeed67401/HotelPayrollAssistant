@@ -2,6 +2,47 @@
 
 **Engineering candidate based on v0.5.2. The installer is verified for supervised testing with fictional data. Live payroll acceptance is open.**
 
+## Faint handwriting review
+
+The offline importer now flags coherent faint strokes when the usual ink
+check would classify the cell as blank. The reviewer must enter a time or
+confirm the blank or crossed-out field. The faint-ink check supplies no
+transcription, suggestion or field value.
+
+On a fictional full-sheet import, all 16 faint punches went from blank
+to explicit review. All 12 blank, speckle and dash controls stayed blank.
+Separate controls kept all 20 clean suggestions and withheld suggestions
+on all 32 conflicting AM/PM and all four missing AM/PM examples. The
+offline Linux headless suite passed 155 tests and the application self-test.
+
+The baseline was draft head `c788d5817d6509aad3cb77f2f6a1246e15f43420`.
+The frozen code and test tree was `95a819066826611b5b88c741030a7c69b460cc9d`.
+Both ran the same offline import path, pinned models and scorer. All
+scored counters matched.
+
+| Photo set | Exact literal reads | Correct complete suggestions | Manual entries | Wrong raw reads | Unsafe suggestions |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Development originals | 115/151 | 32/50 | 119 | 5 | 0 |
+| Development dimmed | 116/151 | 29/50 | 122 | 7 | 0 |
+| Development perspective | 117/151 | 30/50 | 121 | 8 | 0 |
+| Reserved originals | 40/65 | 7/26 | 58 | 3 | 0 |
+
+There were zero autofilled punches and no additional clean blanks flagged
+for review. The four reserved originals were scored in aggregate after the
+candidate was frozen. Production accuracy still requires fresh,
+writer-disjoint photos with independently checked labels.
+
+Character-position alignment between the two readers recovered two exact
+reads on development originals and added no complete suggestions. A dimmed
+correction cell produced a plausible raw clock despite agreement across
+two views of the first reader. Alignment stays experimental.
+
+Next, test whether the disputed glyph contains overlapping or separate
+correction strokes before counting matching positions as corroboration.
+Start with controlled overwrites and naturally joined clean glyphs. Then
+compare literal recovery and correction errors on development originals
+and dimmed photos. Keep the whole-clock requirements for suggestions.
+
 ## Dense short cancellation strokes
 
 A dense clock entry can obscure one side of a short strike-through. The

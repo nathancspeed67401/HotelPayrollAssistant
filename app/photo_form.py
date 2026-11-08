@@ -144,6 +144,32 @@ def _has_ink(cell: Image.Image) -> bool:
     return int(np.count_nonzero(mask)) >= 25 and (connected >= 2 or bool(np.any(stats[1:, cv2.CC_STAT_AREA] >= 20)))
 
 
+def _has_faint_ink(cell: Image.Image) -> bool:
+    """Find coherent low-contrast strokes in an otherwise blank-looking cell."""
+    gray = np.asarray(cell.convert('L'))
+    if min(gray.shape) < 24:
+        return False
+    gray = gray[5:-5, 8:-8]
+    height, width = gray.shape
+    paper = cv2.GaussianBlur(gray, (21, 21), 0).astype('int16')
+    contrast = paper - gray
+    mask = np.uint8((contrast >= 4) & (contrast <= 18))
+    _, _, stats, centers = cv2.connectedComponentsWithStats(mask)
+    strokes = []
+    for index, (x, y, w, h, area) in enumerate(stats[1:], 1):
+        if (x == 0 or y == 0 or x + w >= width or y + h >= height or w < 2
+                or h < .25 * height or w > .32 * width
+                or area < max(6, .26 * height) or area > .80 * w * h):
+            continue
+        strokes.append((x, x + w, centers[index, 1]))
+    if len(strokes) < 2:
+        return False
+    left = min(x1 for x1, _, _ in strokes)
+    right = max(x2 for _, x2, _ in strokes)
+    rows = [y for _, _, y in strokes]
+    return right - left >= .13 * width and max(rows) - min(rows) <= .34 * height
+
+
 def _has_strike_through(cell: Image.Image) -> bool:
     """Find a long stroke through the writing before offering a suggestion."""
     height = 48
@@ -327,7 +353,10 @@ def scan_this_form(sheet, image: Image.Image) -> bool:
             ink_view = cell.resize(grid.crop_size(row, col), Image.Resampling.LANCZOS)
             if not _has_ink(ink_view):
                 sheet.days[row].recognized[field] = ''
-                sheet.days[row].observations[field] = {'status':'blank','raw':''}
+                status = 'possible-faint-ink' if _has_faint_ink(ink_view) else 'blank'
+                sheet.days[row].observations[field] = {'status':status,'raw':''}
+                if status == 'possible-faint-ink':
+                    warnings.append(f'Week {row//7+1} {DISPLAY[row%7]}, {field}: check faint writing')
             else:
                 cells.append((row,field,cell))
     readings = [[] for _ in cells]

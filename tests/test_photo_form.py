@@ -310,3 +310,45 @@ def test_photo_import_keeps_only_review_text_when_primary_reader_fails(
     assert all(not (day.in1 or day.out1 or day.in2 or day.out2) for day in sheet.days)
     with pytest.raises(ValueError, match='Writing needs a time'):
         mark_row_reviewed(sheet, 0)
+
+
+def test_faint_punches_require_an_explicit_review_decision(tmp_path):
+    from PIL import ImageFont
+
+    from app.ocr import scan_page
+    from app.review import mark_row_reviewed
+    from app.smoke import single_pair_fixture
+
+    page, rows = single_pair_fixture()
+    draw = ImageDraw.Draw(page)
+    font = ImageFont.load_default(size=25)
+    for row, (top, _) in enumerate(rows):
+        for left, text in ((265, '8:41A'), (390, '3:19P')):
+            draw.rectangle((left + 2, top + 2, left + 121, top + 44), fill='white')
+            if row % 7 in (1, 2, 3, 4):
+                tone = (249, 247, 245, 243)[row % 7 - 1]
+                draw.text((left + 14, top + 6), text, font=font, fill=(tone,) * 3)
+            elif row % 7 == 5:
+                for x in (15, 35, 55, 75):
+                    draw.line((left + x, top + 10, left + x, top + 12), fill=(248,) * 3)
+            elif row % 7 == 6:
+                draw.line((left + 5, top + 23, left + 110, top + 23), fill=(248,) * 3)
+
+    path = tmp_path / 'fictional-faint-punches.png'
+    page.save(path)
+    sheet = scan_page(str(path), page)
+
+    assert len(sheet.review_boxes) == 14
+    for row, day in enumerate(sheet.days):
+        expected = 'possible-faint-ink' if row % 7 in (1, 2, 3, 4) else 'blank'
+        for field in ('in1', 'out1'):
+            assert day.observations[field]['status'] == expected
+            assert not day.observations[field].get('proposal')
+            assert not day.recognized[field]
+            assert not getattr(day, field)
+    with pytest.raises(ValueError, match='Writing needs a time'):
+        mark_row_reviewed(sheet, 1)
+    assert not sheet.reviewed_days[1]
+    sheet.days[1].blank_confirmed = ['in1', 'out1']
+    mark_row_reviewed(sheet, 1)
+    assert sheet.reviewed_days[1]

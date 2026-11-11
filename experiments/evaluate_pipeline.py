@@ -1,4 +1,4 @@
-"""Evaluate the actual scan_page path; never write source images into reports."""
+"""Evaluate scan_page suggestions separately from accepted punch fields."""
 import argparse
 import json
 from pathlib import Path
@@ -24,7 +24,7 @@ def main():
             entries[cell['row']][cell['field']] = cell['written']
         ground = [dict(file=ground['source'], punches=entries)]
     totals = dict(correct=0, missed=0, wrong=0, blank=0, false_positive=0,
-                  ambiguous=0, ambiguous_auto_filled=0)
+                  ambiguous=0, ambiguous_auto_filled=0, ambiguous_suggestions=0, auto_filled=0)
     reports = []
     started = time.perf_counter()
     for index, case in enumerate(ground):
@@ -37,14 +37,18 @@ def main():
             for field in TIME_FIELDS:
                 written = day[field]
                 expected, error = normalize_time(written)
-                got = getattr(sheet.days[row], field)
+                scanned = sheet.days[row]
+                filled = bool(getattr(scanned, field))
+                counts['auto_filled'] += filled
+                got = scanned.observations.get(field, {}).get('proposal', '')
                 actual, actual_error = normalize_time(got)
                 if not written:
                     counts['blank'] += 1
                     counts['false_positive'] += bool(got)
                 elif error:
                     counts['ambiguous'] += 1
-                    counts['ambiguous_auto_filled'] += bool(got)
+                    counts['ambiguous_auto_filled'] += filled
+                    counts['ambiguous_suggestions'] += bool(got)
                 elif actual == expected and not actual_error:
                     counts['correct'] += 1
                 elif not got:

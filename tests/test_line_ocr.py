@@ -56,6 +56,42 @@ def test_numeric_shorthand_can_be_scored_without_inventing_a_half_day():
     assert choose_clock([reading('830')]).value==''
 
 
+def test_photo_hints_require_the_native_crop_to_corroborate_transformed_views():
+    from app.line_ocr import choose_clock
+
+    transformed = [reading('8:00A', source) for source in ('gray', 'contrast', 'gray-tight')]
+    result = choose_clock([reading('8:0OA'), *transformed])
+    assert result.value == '' and result.status == 'uncertain-reading'
+    assert '8:0OA' in result.raw
+    assert choose_clock([reading('8A'), *transformed]).value == ''
+    assert choose_clock([reading('800A'), transformed[0]]).value == ''
+    assert choose_clock([reading('800A'), *transformed]).value == '8:00A'
+
+
+def test_hour_shorthand_does_not_corroborate_written_minutes():
+    from app.line_ocr import choose_clock
+
+    native = reading('8:00A', mean=.88, minimum=.60)
+    shorthand = reading('8A', 'gray')
+    assert choose_clock([native, shorthand]).value == ''
+    assert choose_clock([native, shorthand, reading('8:00A', 'contrast')]).value == '8:00A'
+
+
+@pytest.mark.parametrize(('text', 'expected'), [
+    ('７．０５Ａ．Ｍ．', '7:05AM'),
+    ('9;10P', '9:10P'),
+    ('07：05', '07:05'),
+    ('7.5A', '7.5A'),
+    ('7.05', '7.05'),
+    ('7:05A/P', '7:05A/P'),
+    ('7:0OA', '7:0OA'),
+])
+def test_photo_clock_normalization_preserves_time_evidence(text, expected):
+    from app.line_ocr import photo_clock_text
+
+    assert photo_clock_text(text) == expected
+
+
 def test_invalid_model_probabilities_are_reported():
     with pytest.raises(LineOCRError,match='probabilities'):
         decode_ctc(np.full((3,2),float('nan')),['blank','A'],'raw')
@@ -122,7 +158,8 @@ def test_import_reads_varied_times_and_keeps_ambiguous_punch_unreviewed():
         for row, day in enumerate(case['punches']):
             for field in TIME_FIELDS:
                 expected, error = normalize_time(day[field])
-                got = getattr(sheet.days[row], field)
+                assert getattr(sheet.days[row], field) == ''
+                got = sheet.days[row].observations[field].get('proposal', '')
                 if error:
                     assert got == ''
                     assert any(w.startswith(f'Week {row//7+1} ') and field in w

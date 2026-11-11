@@ -19,6 +19,7 @@ from .model_assets import LINE_MODEL, LINE_MODEL_SHA256
 
 VIEWS = ('raw', 'blue', 'clean', 'narrow')
 PHOTO_VIEWS = ('raw', 'gray', 'contrast', 'gray-tight')
+_CLOCK_WIDTHS = str.maketrans('０１２３４５６７８９：；．ＡＰＭａｐｍ', '0123456789:;.APMapm')
 
 
 class LineOCRError(RuntimeError):
@@ -61,6 +62,14 @@ def clock_key(text: str) -> str:
     return f'{hour}:{minute:02d}{suffix}'
 
 
+def photo_clock_text(text: str) -> str:
+    """Normalize punctuation in an otherwise literal photo clock reading."""
+    literal = re.sub(r'\s+', '', text.translate(_CLOCK_WIDTHS)).upper()
+    literal = re.sub(r'^([0-9]{1,2})[.;]([0-5][0-9])(?=[AP])', r'\1:\2', literal)
+    literal = re.sub(r'[AP](?:\.?M)?\.?$', lambda match: match[0].replace('.', ''), literal)
+    return literal if clock_key(literal) else text
+
+
 def choose_clock(readings: list[Reading]) -> Decision:
     """Preserve numeric transcription separately from a wage-affecting time.
 
@@ -79,20 +88,33 @@ def choose_clock(readings: list[Reading]) -> Decision:
     if not groups:
         return Decision('',raw,'unreadable-or-invalid')
     key,candidates = next(iter(groups.items()))
-    strong = any(r.confidence >= .97 and r.minimum >= .90 for r in candidates)
-    if not strong and len({r.source for r in candidates}) < 2:
+    # Preprocessing can erase or reshape the same stroke in several views.
+    # Require the native crop to support the complete reading before offering it.
+    native = next((r for r in candidates if r.source == 'raw'), None)
+    if native is None:
         return Decision('',raw,'uncertain-reading')
-    best = max(candidates,key=lambda r:r.confidence)
-    literal = re.sub(r'\s+','',best.text).upper()
+    complete = [r for r in candidates if len(re.findall(r'\d', r.text)) >= 3]
+    if native not in complete:
+        return Decision('',native.text.strip(),'needs-AM/PM-or-minutes')
+    strong = any(r.confidence >= .97 and r.minimum >= .90 for r in complete)
+    complete_views = {r.source for r in complete}
+    if not strong and len(complete_views) < 2:
+        return Decision('',raw,'uncertain-reading')
+    literal = re.sub(r'\s+','',native.text).upper()
     # On this handwritten form, a leading zero does not establish a 24h
     # convention. Only 00/13-23 or an explicit A/P can resolve the half-day.
     hour = int(key.split(':')[0])
-    explicit = bool(re.fullmatch(r'\d{1,2}:[0-5]\d[AP](?:M)?',literal))
+    explicit = bool(re.fullmatch(r'\d{1,2}:?[0-5]\d[AP](?:M)?',literal))
+    if explicit and ':' not in literal:
+        # A compact clock must preserve every digit and the suffix across
+        # views. A missing colon leaves less evidence of where minutes begin.
+        if len(complete_views) < 3:
+            return Decision('',raw,'uncertain-reading')
     if not explicit and not (hour == 0 or hour >= 13):
-        return Decision('',best.text.strip(),'needs-AM/PM-or-minutes')
+        return Decision('',native.text.strip(),'needs-AM/PM-or-minutes')
     value,error = normalize_time(literal)
     return Decision(display_time(value) if value and not error else '',
-                    best.text.strip(),'suggestion' if value and not error else 'unreadable-or-invalid')
+                    native.text.strip(),'suggestion' if value and not error else 'unreadable-or-invalid')
 
 
 def choose_time(readings: list[Reading]) -> Decision:
@@ -222,14 +244,16 @@ class LineRecognizer:
     def recognize(self, images: list[Image.Image], views=VIEWS) -> list[list[Reading]]:
         import cv2
         result = [[] for _ in images]
+        photo_views = views == PHOTO_VIEWS
         for view in views:
+            interpolation = cv2.INTER_CUBIC if photo_views and view == 'raw' else cv2.INTER_LINEAR
             for start in range(0, len(images), 6):
                 batch = [prepare_view(image, view) for image in images[start:start+6]]
                 width = max(320, max(math.ceil(48*a.shape[1]/a.shape[0]) for a in batch))
                 tensor = np.zeros((len(batch), 3, 48, width), dtype='float32')
                 for i, a in enumerate(batch):
                     w = min(width, math.ceil(48*a.shape[1]/a.shape[0]))
-                    resized = cv2.resize(a, (w, 48)).astype('float32')/127.5-1
+                    resized = cv2.resize(a, (w, 48), interpolation=interpolation).astype('float32')/127.5-1
                     tensor[i, :, :, :w] = resized.transpose(2, 0, 1)
                 try:
                     predictions = self.session.run(None, {self.input_name: tensor})[0]

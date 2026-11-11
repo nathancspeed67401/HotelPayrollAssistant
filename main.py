@@ -18,9 +18,13 @@ def self_test() -> int:
     assert len(_model().classes_) >= 12
     assert recognize_time(Image.new('RGB',(100,30),'white'))[0] == ''
     # Exercise the real bundled ONNX graph and dictionary, without networking.
+    from app.clock_ocr import get_clock_recognizer
     from app.line_ocr import get_recognizer
-    readings = get_recognizer().recognize([Image.new('RGB', (120, 35), 'white')])
+    blank = Image.new('RGB', (120, 35), 'white')
+    readings = get_recognizer().recognize([blank])
     assert len(readings) == 1 and len(readings[0]) == 4
+    clock_readings = get_clock_recognizer().recognize([blank])
+    assert len(clock_readings) == 1 and len(clock_readings[0]) == 2
     with tempfile.TemporaryDirectory(prefix='hotel-payroll-test-') as location:
         dest = Path(location)
         img = Image.new('RGB', (380, 95), 'white')

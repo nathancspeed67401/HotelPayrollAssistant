@@ -1,26 +1,40 @@
 # Windows build status · November 7, 2026
 
-**v0.5.2 engineering candidate. Use fictional timesheets for acceptance.**
+**Verified engineering installer for supervised testing with fictional data. Lynnette's PC acceptance is open.**
 
 | Windows Server 2022 job | Exact source | Status |
 | --- | --- | --- |
-| [CircleCI #27](https://circleci.com/gh/nathancspeed67401/HotelPayrollAssistant/27) | [`a9b641417350c621858ef07ab748a28d38df7ac0`](https://github.com/nathancspeed67401/HotelPayrollAssistant/commit/a9b641417350c621858ef07ab748a28d38df7ac0) | Passed |
-| [CircleCI #26](https://circleci.com/gh/nathancspeed67401/HotelPayrollAssistant/26) | [`bb467ffb7cbe951899823bbf535a2ca2f70b99bd`](https://github.com/nathancspeed67401/HotelPayrollAssistant/commit/bb467ffb7cbe951899823bbf535a2ca2f70b99bd) | Passed |
-| [CircleCI #25](https://circleci.com/gh/nathancspeed67401/HotelPayrollAssistant/25) | `21e666954f43eef2b340235f6d1bf384d0529910` | Passed |
+| [CircleCI #32](https://circleci.com/gh/nathancspeed67401/HotelPayrollAssistant/32) | [`be16f5b5e20c3a608c1aa3531714f335056cfc23`](https://github.com/nathancspeed67401/HotelPayrollAssistant/commit/be16f5b5e20c3a608c1aa3531714f335056cfc23) | Passed. Installer file verification is pending. |
+| [CircleCI #31](https://circleci.com/gh/nathancspeed67401/HotelPayrollAssistant/31) | [`cbe6022463429fa6b42bd94613bb77ba0a448b0c`](https://github.com/nathancspeed67401/HotelPayrollAssistant/commit/cbe6022463429fa6b42bd94613bb77ba0a448b0c) | Passed |
+| [CircleCI #30](https://circleci.com/gh/nathancspeed67401/HotelPayrollAssistant/30) | `fe4c8486f84a431884a76cb4ef961e43828ff14a` | Failed. CircleCI shows one failed test, `test_partial_pay_period_date_is_not_copied_to_other_employees`. The assertion details require its signed-in log. |
+| [CircleCI #29](https://circleci.com/gh/nathancspeed67401/HotelPayrollAssistant/29) | `fbeb143768d359fb543aa0ca366fff35077e6d7b` | Passed on earlier source |
+| [CircleCI #28](https://circleci.com/gh/nathancspeed67401/HotelPayrollAssistant/28) | `9a46c916334d56e9460a3939a2b7a497caf445d0` | Passed on main |
 
-The job compiles the Inno Setup executable, installs it, exercises real offline
-recognition and the desktop workflow with fictional photo and PDF inputs,
-and uninstalls it. The candidate passed 122 local tests with external
-network access blocked and the display set to 1366×768.
+The Windows workflow verifies the bundled OCR model, isolates the test
+executables from outbound traffic, runs pytest, builds the Inno Setup package,
+and checks installed offline import, review, export, restart and uninstall.
+GitHub's exact-commit status reports success for jobs #31 and #32.
 
-Open the candidate job's **Artifacts** tab with an authenticated CircleCI
-account that can access this payroll project. The configured installer is
-`Windows-Setup/HotelPayrollAssistant_Setup.exe`. The corresponding checksum and
-commit manifests are under `Verification`.
+To verify the draft candidate's installer, retrieve
+`Windows-Setup/HotelPayrollAssistant_Setup.exe`,
+`Verification/installer-sha256.txt` and `Verification/source-commit.txt`
+from job #32. Hash the downloaded executable, compare it with the supplied
+SHA-256 and match the full source SHA above.
 
-The session could verify the job status through GitHub. The private artifact
-listing was inaccessible, so the setup bytes and SHA-256 are unverified
-independently. Windows 10/11 field testing and Lynnette's acceptance remain open.
+## Verified job #31 installer
 
-See [Release status](RELEASE_STATUS.md) for the test workflow and
-[Development progress](DEVELOPMENT_PROGRESS.md) for the remaining gates.
+The uploaded `HotelPayrollAssistant_Setup.exe` is a 204,455,302 byte Windows
+Inno Setup package. Its SHA-256 was computed directly from the uploaded
+bytes and matched the value supplied from job #31's
+`Verification/installer-sha256.txt`.
+
+`9cda000edf5c7f269967257bc00d0569f3bfbb35b1b19b04118494af5dda0cba`
+
+The copied `Verification/source-commit.txt` value was
+`cbe6022463429fa6b42bd94613bb77ba0a448b0c`, matching the GitHub status
+for passing job #31. The PE certificate table is empty, so the test
+installer carries no embedded Authenticode signature.
+
+The installer is ready for a supervised Windows test with the fictional
+acceptance pack. Follow the [Windows checklist](RELEASE_STATUS.md) and
+record Lynnette's PC results.

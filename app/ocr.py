@@ -11,7 +11,7 @@ from PIL import Image, ImageOps, ImageEnhance
 import pytesseract
 from .core import Sheet, DISPLAY, TIME_FIELDS, digest_bytes
 from .handwriting import recognize_time
-from .form_geometry import REF_W, REF_H, ROW_Y, COL_X, find_form_grid
+from .form_geometry import REF_W, REF_H, ROW_Y, COL_X, FormGrid, find_form_grid
 from .line_ocr import Reading, LineOCRError, choose_time, get_recognizer
 
 
@@ -91,33 +91,58 @@ def _cleanup_time(text: str) -> str:
     return cleaned[:12]
 
 
+def _legacy_headers_match(image: Image.Image, grid: FormGrid) -> bool:
+    """Require the four printed clock headings in both weeks before prefilling."""
+    bounds = []
+    for row in (0, 7):
+        top, bottom = grid.row_bounds[row]
+        header_top = tuple(2 * a - b for a, b in zip(top, bottom))
+        bounds.append((header_top, top))
+    headers = FormGrid(grid.image_size, grid.analysis_size,
+                       (grid.vertical[0], grid.vertical[-1]), tuple(bounds))
+    strip = Image.new('L', (1040, 190), 255)
+    for week in range(2):
+        crop = ImageOps.autocontrast(headers.crop_cell(image, week, 0).convert('L'), cutoff=1)
+        strip.paste(crop.resize((1020, 74), Image.Resampling.LANCZOS), (10, 10 + 92 * week))
+    words = pytesseract.image_to_data(strip, config='--psm 6', output_type=pytesseract.Output.DICT)
+    headings = [[[], [], [], []] for _ in range(2)]
+    for text, left, top, width, height in zip(
+            words['text'], words['left'], words['top'], words['width'], words['height']):
+        week = (top + height // 2) // 92
+        column = (left + width // 2 - 10) * 4 // 1020
+        word = re.sub('[^A-Z]', '', text.upper())
+        if week < 2 and 0 <= column < 4 and word:
+            headings[week][column].append(word)
+    expected = ('TIMEIN', 'TIMEOUT', 'TIMEIN', 'TIMEOUT')
+    return all(tuple(''.join(words) for words in week) == expected for week in headings)
+
+
 def scan_page(path: str, image: Image.Image, page_number: int = 1) -> Sheet:
     raw = Path(path).read_bytes()
     fingerprint = digest_bytes(raw + f"-page{page_number}".encode())
     sheet = Sheet(source=f"{path}#page{page_number}", source_hash=fingerprint)
     configure_tesseract()
-    # The actual Comfort Suites sheet has one pair; retain the aligned
-    # two-pair reader for the older form instead of replacing either reader.
-    from .photo_form import is_this_form, scan_this_form
-    if is_this_form(image):
-        scan_this_form(sheet, image)
-        return sheet
-    # Every recognition result is tentative until the manager approves the sheet.
-    name_area = _crop_scaled(image, (593, 204, 888, 249))
-    guess = _ocr_cell(name_area, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
-    # Tesseract often removes spaces from full names; recover CamelCase word boundaries.
-    guess = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", guess)
-    sheet.employee = guess if len(guess.strip()) >= 3 else ""
-    warnings = ["OCR is preliminary. Verify every punch against the photo before approving."]
+    # Printed legacy headings resolve the form without the cost of running
+    # single-pair registration first. Grid geometry alone cannot select the
+    # template or assign a reading to a clock field.
     grid = find_form_grid(image)
-    if grid is None:
-        warnings.append('Printed grid could not be aligned reliably. Check that each punch belongs to the correct row and column.')
+    warnings = ["OCR is preliminary. Verify every punch against the photo before approving."]
+    if grid is None or not _legacy_headers_match(image, grid):
+        from .photo_form import scan_this_form
+        if scan_this_form(sheet, image):
+            return sheet
+        warnings.append('Printed grid and punch headings could not be aligned reliably. Check each punch against the full photo.')
         for idx,day in enumerate(sheet.days):
             for field in TIME_FIELDS:
                 day.observations[field] = {'status':'alignment-failed','raw':''}
             warnings.append(f'Week {idx//7+1} {DISPLAY[idx%7]}, grid not aligned: read the full photograph')
         sheet.scan_warnings = warnings
         return sheet
+    name_area = _crop_scaled(image, (593, 204, 888, 249))
+    guess = _ocr_cell(name_area, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
+    # Tesseract often removes spaces from full names; recover CamelCase word boundaries.
+    guess = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", guess)
+    sheet.employee = guess if len(guess.strip()) >= 3 else ""
     for row in range(14):
         quad = sum((grid.cell_quad(row,col) for col in range(4)),())
         sheet.review_boxes.append([max(0,round(min(x for x,y in quad)-30)),
@@ -128,7 +153,7 @@ def scan_page(path: str, image: Image.Image, page_number: int = 1) -> Sheet:
     for idx, (top, bottom) in enumerate(ROW_Y):
         for col, (field, (left, right)) in enumerate(zip(TIME_FIELDS, COL_X)):
             fixed = _crop_scaled(image, (left, top + 3, right, bottom - 3))
-            cell = grid.crop_cell(image, idx, col) if grid else fixed
+            cell = grid.crop_cell(image, idx, col)
             cells.append((idx, field, cell, fixed, _likely_blank(cell)))
     active = [cell for cell in cells if not cell[4]]
     line_readings = [[] for _ in active]
@@ -140,17 +165,16 @@ def scan_page(path: str, image: Image.Image, page_number: int = 1) -> Sheet:
     for (idx, field, cell, fixed, _), readings in zip(active, line_readings):
         # The small digit model supplies conservative suggestions and flags
         # plausible conflicting readings from the aligned and legacy crops.
-        for source, crop in [('digits-grid', cell)] + ([('digits-fixed', fixed)] if grid else []):
+        for source, crop in (('digits-grid', cell), ('digits-fixed', fixed)):
             text, confidence, _status = recognize_time(crop, minimum_confidence=.60)
             if text:
                 readings.append(Reading(text, confidence, confidence, source))
         decision = choose_time(readings)
         sheet.days[idx].recognized[field] = decision.raw
         sheet.days[idx].observations[field] = {'status':decision.status,'raw':decision.raw,
+                                             'proposal':decision.value,
                                              'confidence_is_calibrated':False}
-        if decision.value:
-            setattr(sheet.days[idx], field, decision.value)
-        else:
+        if not decision.value:
             detail = f' (read: {decision.raw[:60]})' if decision.raw else ''
             reason = {'conflicting-readings': 'different possible times',
                       'uncertain-reading': 'uncertain time',

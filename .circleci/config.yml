@@ -24,6 +24,18 @@ jobs:
             & 'C:\Python312\python.exe' scripts\fetch_ocr_model.py
             if ($LASTEXITCODE -ne 0) { throw 'Handwriting model download or integrity check failed' }
       - run:
+          name: Isolate payroll test executables from outbound traffic
+          command: |
+            $ErrorActionPreference = 'Stop'
+            Set-NetFirewallProfile -Profile Domain,Private,Public -Enabled True
+            if (Get-NetFirewallProfile -PolicyStore ActiveStore | Where-Object Enabled -ne 'True') {
+              throw 'Windows Firewall is not active on every profile'
+            }
+            foreach ($program in @('C:\Python312\python.exe', 'C:\Program Files\Tesseract-OCR\tesseract.exe')) {
+              $rule = New-NetFirewallRule -DisplayName "Payroll offline tests: $program" -Direction Outbound -Action Block -Program $program -Profile Any
+              Get-NetFirewallRule -Name $rule.Name -PolicyStore ActiveStore | Out-Null
+            }
+      - run:
           name: Execute automated tests
           command: |
             New-Item -ItemType Directory -Force test-results | Out-Null
@@ -55,6 +67,12 @@ jobs:
             if ($process.ExitCode -ne 0) { throw "Installer returned $($process.ExitCode)" }
             $exe=Join-Path $destination 'Hotel Payroll Assistant.exe'
             if (!(Test-Path $exe)) { throw 'Program not installed' }
+            $ErrorActionPreference = 'Stop'
+            $ocr=Join-Path $destination '_internal\tesseract\tesseract.exe'
+            foreach ($program in @($exe, $ocr)) {
+              $rule = New-NetFirewallRule -DisplayName "Payroll offline install test: $program" -Direction Outbound -Action Block -Program $program -Profile Any
+              Get-NetFirewallRule -Name $rule.Name -PolicyStore ActiveStore | Out-Null
+            }
             $smoke=Start-Process $exe -ArgumentList '--self-test' -Wait -PassThru
             if ($smoke.ExitCode -ne 0) {
               Get-Content (Join-Path $env:TEMP 'HotelPayrollAssistant_self_test_error.txt') -ErrorAction SilentlyContinue

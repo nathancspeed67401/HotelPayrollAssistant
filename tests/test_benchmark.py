@@ -15,6 +15,17 @@ def test_missing_predictions_are_misses_and_never_dropped():
     assert not result['target_met']
 
 
+def test_failed_registration_cannot_get_credit_for_a_coincidental_clock():
+    prediction = {'sheet': 'S01', 'row': 0, 'field': 'in1', 'raw': '8:30A',
+                  'suggestion': '8:30A', 'status': 'alignment-failed', 'confidence': .99}
+    result = evaluate_cells([label()], [prediction], 1)
+    counts = result['counts']
+    assert counts['missed_transcriptions'] == counts['misses_from_failed_registration'] == 1
+    assert counts['exact_transcriptions'] == counts['correct_suggestions'] == 0
+    assert counts['unsafe_suggestions'] == 1
+    assert not result['confidence_bins']
+
+
 @pytest.mark.parametrize('change',[{'reviewer_id':'first'},{'independently_verified':False},{'split':'development'}])
 def test_a_development_result_or_unchecked_label_cannot_meet_release_target(change):
     prediction={'sheet':'S01','row':0,'field':'in1','raw':'8:30A','value':'8:30A'}
@@ -61,3 +72,31 @@ def test_benchmark_distinguishes_clean_blanks_and_crossed_out_entries():
     assert counts['correct_clean_blanks'] == 1
     assert counts['crossed_out_flagged_for_review'] == 1
     assert counts['crossed_out'] == 2
+
+
+def test_only_fresh_acceptance_can_pass_and_single_pair_fields_must_stay_empty():
+    prediction = {'sheet': 'S01', 'row': 0, 'field': 'in1', 'raw': '8:30A', 'suggestion': '8:30A'}
+    assert not evaluate_cells([label()], [prediction], 1, acceptance_verified=True)['target_met']
+    fresh = [label(split='acceptance')]
+    assert not evaluate_cells(fresh, [prediction], 1)['target_met']
+    assert evaluate_cells(fresh, [prediction], 1, acceptance_verified=True)['target_met']
+    filled = prediction | {'value': '8:30A'}
+    assert not evaluate_cells(fresh, [filled], 1, acceptance_verified=True)['target_met']
+
+
+def test_acceptance_requires_a_frozen_source_and_disjoint_writers():
+    from experiments.evaluate_real_forms import verify_acceptance
+
+    prior = {'original_sha256': 'a' * 64, 'split': 'holdout', 'writer_id': 'first'}
+    fresh = {'original_sha256': 'b' * 64, 'split': 'acceptance', 'writer_id': 'second',
+             'cells': [{'row': row, 'field': field} for row in range(14) for field in ('in1', 'out1')]}
+    run = {'variant': 'original', 'source_sha': 'c' * 40}
+    reference = {'sheets': [prior]}
+    manifest = {'sheets': [prior, fresh], 'acceptance_source_sha': run['source_sha']}
+    verify_acceptance(manifest, reference, run)
+    with pytest.raises(ValueError, match='frozen source'):
+        verify_acceptance(manifest, reference, run | {'source_sha': 'd' * 40})
+    with pytest.raises(ValueError, match='disjoint'):
+        verify_acceptance(manifest | {'sheets': [prior, fresh | {'writer_id': 'first'}]}, reference, run)
+    with pytest.raises(ValueError, match='Preserve the reference'):
+        verify_acceptance(manifest | {'sheets': [fresh]}, reference, run)

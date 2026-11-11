@@ -27,10 +27,12 @@ def main():
     parser.add_argument('--originals',required=True)
     parser.add_argument('--output',required=True)
     parser.add_argument('--source-sha',required=True)
-    parser.add_argument('--split',choices=['development','holdout','historical-development'],required=True)
+    parser.add_argument('--split',choices=['development','holdout','historical-development','acceptance'],required=True)
     parser.add_argument('--variant',choices=['original','rotate180','dim','jpeg45','perspective'],default='original')
     parser.add_argument('--sheet',action='append',help='Limit a diagnostic run to anonymous sheet IDs')
     args=parser.parse_args()
+    if args.split == 'acceptance' and (args.sheet or args.variant != 'original'):
+        parser.error('Acceptance must scan every original in the acceptance split')
     from experiments.offline_guard import block_network
     block_network()
     from app.ocr import scan_page,load_pages
@@ -53,7 +55,8 @@ def main():
             for field in ('in1','out1'):
                 obs=day.observations.get(field,{})
                 candidates=obs.get('candidates',[])
-                best=max(candidates,key=lambda c:c.get('confidence',0)) if candidates else {}
+                best=obs.get('transcription') or (max(candidates,key=lambda c:c.get('confidence',0))
+                                                 if candidates else {})
                 predictions.append({'sheet':sid,'row':row,'field':field,
                     'raw':best.get('text',day.recognized.get(field,'')),
                     'value':getattr(day,field),'suggestion':obs.get('proposal',getattr(day,field)),

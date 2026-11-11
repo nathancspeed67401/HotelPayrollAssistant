@@ -4,6 +4,7 @@ Camera alignment and reading suggestions are experimental. No AM/PM is guessed.
 Never distribute private employee timesheet photographs with the repository.
 """
 from __future__ import annotations
+from dataclasses import replace
 import re
 import cv2
 import numpy as np
@@ -47,11 +48,16 @@ def _paper_box(image: Image.Image) -> tuple[int, int, int, int]:
             min(w, round(x2 / scale)), min(h, round((y + ch) / scale)))
 
 
-def normalized_page(image: Image.Image) -> Image.Image:
+def _portrait(image: Image.Image) -> tuple[Image.Image, int]:
     image = ImageOps.exif_transpose(image).convert('RGB')
     if image.width > image.height:
-        image = image.rotate(90, expand=True)
-    return image.crop(_paper_box(image)).resize((PAGE_W, PAGE_H), Image.Resampling.LANCZOS)
+        return image.rotate(90, expand=True), 90
+    return image, 0
+
+
+def normalized_page(image: Image.Image) -> Image.Image:
+    portrait, _ = _portrait(image)
+    return portrait.crop(_paper_box(portrait)).resize((PAGE_W, PAGE_H), Image.Resampling.LANCZOS)
 
 
 def _header_matches(page: Image.Image) -> bool:
@@ -127,11 +133,261 @@ def _has_ink(cell: Image.Image) -> bool:
         gray = gray[5:-5,5:-5]
     background = cv2.GaussianBlur(gray, (21, 21), 0)
     inner = gray[:, 3:-3]
-    contrast = background[:, 3:-3].astype('int16') - inner.astype('int16')
-    mask = np.uint8((contrast > 13) & (inner < 230)) * 255
+    paper = background[:, 3:-3].astype('int16')
+    contrast = paper - inner
+    # A dark photo compresses the difference between paper and pencil.
+    # Lower the contrast threshold there while keeping a floor for noise.
+    threshold = np.clip(.075 * paper, 8, 13)
+    mask = np.uint8((contrast > threshold) & (inner < 230)) * 255
     _, _, stats, _ = cv2.connectedComponentsWithStats(mask)
     connected = int(np.count_nonzero(stats[1:, cv2.CC_STAT_AREA] >= 3))
     return int(np.count_nonzero(mask)) >= 25 and (connected >= 2 or bool(np.any(stats[1:, cv2.CC_STAT_AREA] >= 20)))
+
+
+def _has_faint_ink(cell: Image.Image) -> bool:
+    """Find coherent strokes in an otherwise blank-looking cell."""
+    gray = np.asarray(cell.convert('L'))
+    if min(gray.shape) < 24:
+        return False
+    interior = np.s_[5:-5, 8:-8]
+    gray = gray[interior]
+    paper = cv2.GaussianBlur(gray, (21, 21), 0).astype('int16')
+    contrast = paper - gray
+    if _has_aligned_strokes((contrast >= 4) & (contrast <= 18)):
+        return True
+
+    # A pale colored stroke can have the same luminance as its paper.
+    # Estimate the local paper by median so bright ink channels don't
+    # spread their color into the surrounding paper estimate.
+    rgb = np.asarray(cell.convert('RGB'))
+    diameter = max(7, round(cell.height * .46) | 1)
+    local_paper = cv2.medianBlur(rgb, diameter)
+    local_paper = cv2.GaussianBlur(local_paper, (5, 5), 0)[interior].astype('float32')
+    residual = (local_paper - rgb[interior]) * 255 / np.maximum(local_paper, 55)
+    darkest = residual.max(axis=2)
+    chroma = darkest - residual.min(axis=2)
+    return _has_aligned_strokes((chroma >= 16) & (darkest >= 12))
+
+
+def _has_aligned_strokes(mask: np.ndarray) -> bool:
+    height, width = mask.shape
+    _, _, stats, centers = cv2.connectedComponentsWithStats(np.uint8(mask))
+    strokes = []
+    for index, (x, y, w, h, area) in enumerate(stats[1:], 1):
+        if (x == 0 or y == 0 or x + w >= width or y + h >= height or w < 2
+                or h < .25 * height or w > .32 * width
+                or area < max(6, .26 * height) or area > .80 * w * h):
+            continue
+        strokes.append((x, x + w, centers[index, 1]))
+    if len(strokes) < 2:
+        return False
+    left = min(x1 for x1, _, _ in strokes)
+    right = max(x2 for _, x2, _ in strokes)
+    rows = [y for _, _, y in strokes]
+    return right - left >= .13 * width and max(rows) - min(rows) <= .34 * height
+
+
+def _hue_distance(hues: np.ndarray, center: int) -> np.ndarray:
+    return np.abs((hues - center + 90) % 180 - 90)
+
+
+def _has_overlapping_ink_colors(cell: Image.Image) -> bool:
+    """Find distinct pen colors sharing the same stroke area."""
+    width = round(cell.width * 48 / cell.height)
+    rgb = np.asarray(cell.convert('RGB').resize((width, 48), Image.Resampling.BILINEAR))
+    gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
+    contrast = cv2.GaussianBlur(gray, (21, 21), 0).astype('int16') - gray
+    hsv = cv2.cvtColor(rgb, cv2.COLOR_RGB2HSV)
+    hue = hsv[:, :, 0].astype('int16')
+    colored = (hsv[:, :, 1] >= 52) & (contrast >= 18)
+    colored[:5] = colored[-5:] = False
+    colored[:, :8] = colored[:, -8:] = False
+    histogram = np.bincount(hue[colored], minlength=180)
+    weights = sum(np.roll(histogram, shift) for shift in range(-9, 10))
+    primary = int(weights.argmax())
+    weights[_hue_distance(np.arange(180), primary) < 38] = 0
+    secondary = int(weights.argmax())
+    if weights[secondary] < 12:
+        return False
+
+    first = colored & (_hue_distance(hue, primary) <= 10)
+    second = colored & (_hue_distance(hue, secondary) <= 10)
+    first_y, first_x = np.nonzero(first)
+    second_y, second_x = np.nonzero(second)
+    if (min(first_x.max(), second_x.max()) - max(first_x.min(), second_x.min()) < 5
+            or min(first_y.max(), second_y.max()) - max(first_y.min(), second_y.min()) < 5):
+        return False
+
+    # Nearby strokes of both colors distinguish an overwrite from a pen
+    # change between separate parts of an otherwise readable clock.
+    neighborhood = np.ones((5, 5), np.uint8)
+    near_first = cv2.dilate(first.astype(np.uint8), neighborhood) > 0
+    near_second = cv2.dilate(second.astype(np.uint8), neighborhood) > 0
+    return min(np.count_nonzero(first & near_second), np.count_nonzero(second & near_first)) >= 9
+
+
+def _has_stacked_ink(cell: Image.Image) -> bool:
+    """Find two broad, vertically separated ink bands in the same clock cell."""
+    width = round(48 * cell.width / cell.height)
+    gray = np.asarray(cell.convert('L').resize((width, 48), Image.Resampling.BILINEAR))
+    paper = cv2.morphologyEx(gray, cv2.MORPH_CLOSE, np.ones((15, 15), np.uint8))
+    ink = cv2.subtract(paper, gray) >= max(12, .08 * float(np.median(paper)))
+    ink[:4] = ink[-4:] = False
+    ink[:, :8] = ink[:, -8:] = False
+    rows = np.flatnonzero(ink.sum(axis=1) >= 3)
+    bands = []
+    for group in np.split(rows, np.flatnonzero(np.diff(rows) > 1) + 1):
+        if len(group) < 6:
+            continue
+        columns = np.flatnonzero(ink[group].any(axis=0))
+        if columns[-1] - columns[0] >= .22 * width and np.count_nonzero(ink[group]) >= 40:
+            bands.append((group, columns))
+    if len(bands) != 2:
+        return False
+    (top, top_columns), (bottom, bottom_columns) = bands
+    gap = bottom[0] - top[-1] - 1
+    overlap = min(top_columns[-1], bottom_columns[-1]) - max(top_columns[0], bottom_columns[0])
+    return 2 <= gap <= 9 and overlap >= .18 * width and len(top) + len(bottom) >= 15
+
+
+def _has_color_cancellation(cell: Image.Image) -> bool:
+    """Find a pale colored line crossing otherwise dark handwriting."""
+    width = round(cell.width * 48 / cell.height)
+    rgb = np.asarray(cell.convert('RGB').resize((width, 48), Image.Resampling.BILINEAR))
+    paper = cv2.GaussianBlur(cv2.medianBlur(rgb, 19), (5, 5), 0).astype('float32')
+    residual = (paper - rgb) * 255 / np.maximum(paper, 55)
+    chroma = residual.max(axis=2) - residual.min(axis=2)
+    gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
+    luminance_gap = cv2.cvtColor(paper, cv2.COLOR_RGB2GRAY) - gray
+    pale = (chroma >= 18) & (np.abs(luminance_gap) <= 13)
+    pale[:5] = pale[-5:] = False
+    pale[:, :7] = pale[:, -7:] = False
+    lines = cv2.HoughLinesP(np.uint8(pale) * 255, 1, np.pi / 180,
+                            threshold=round(.29 * width), minLineLength=round(.43 * width),
+                            maxLineGap=round(.08 * width))
+    if lines is None:
+        return False
+
+    background = cv2.morphologyEx(gray, cv2.MORPH_CLOSE, np.ones((15, 15), np.uint8))
+    dark = cv2.subtract(background, gray) >= max(14, .09 * float(np.median(background)))
+    dark[:6] = dark[-7:] = False
+    dark[:, :8] = dark[:, -8:] = False
+    y, x = np.nonzero(dark)
+    if len(x) < 30:
+        return False
+    ink_start, ink_end = np.percentile(x, (8, 92))
+    for x1, y1, x2, y2 in lines[:, 0]:
+        if abs(x2 - x1) < .43 * width or abs(y2 - y1) > 9:
+            continue
+        left, right = min(x1, x2), max(x1, x2)
+        overlap = min(right, ink_end) - max(left, ink_start)
+        if overlap < .75 * (ink_end - ink_start):
+            continue
+        distance = y - (y1 + (y2 - y1) / (x2 - x1) * (x - x1))
+        within = (x >= left) & (x <= right)
+        above = x[within & (-15 < distance) & (distance < -3)]
+        below = x[within & (3 < distance) & (distance < 15)]
+        # Underlines and colored rules lack dark writing on both sides.
+        if len(above) >= 18 and len(below) >= 18 and min(np.ptp(above), np.ptp(below)) >= .20 * width:
+            return True
+    return False
+
+
+def _has_strike_through(cell: Image.Image) -> bool:
+    """Find a long stroke through the writing before offering a suggestion."""
+    height = 48
+    width = round(height * cell.width / cell.height)
+    gray = cv2.resize(np.asarray(cell.convert('L')), (width, height), interpolation=cv2.INTER_AREA)
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))
+    paper = cv2.morphologyEx(gray, cv2.MORPH_CLOSE, kernel)
+    ink = cv2.subtract(paper, gray) > max(9, .06 * float(np.median(paper)))
+    lines = cv2.HoughLinesP(np.uint8(ink) * 255, 1, np.pi / 180,
+                            threshold=round(.39 * width), minLineLength=round(.69 * width),
+                            maxLineGap=max(2, round(.035 * width)))
+
+    # Registration can leave a faint printed rule at either row edge.
+    # Require supporting ink in the interior of the cell.
+    top, bottom = round(.12 * height), round(.86 * height)
+    left, right = round(.18 * width), round(.82 * width)
+    y, x = np.nonzero(ink[top:bottom, left:right])
+    y += top
+    x += left
+    for x1, y1, x2, y2 in (() if lines is None else lines[:, 0]):
+        if abs(x2 - x1) < .68 * width or abs(y2 - y1) > .75 * height:
+            continue
+        slope = (y2 - y1) / (x2 - x1)
+        center = y1 + slope * (width / 2 - x1)
+        if not .20 * height < center < .80 * height:
+            continue
+        distance = y - (y1 + slope * (x - x1))
+        above = (-.42 * height < distance) & (distance < -3)
+        below = (3 < distance) & (distance < .42 * height)
+        # Require ink on both sides of the stroke. A printed rule or an
+        # underline below the time cannot supply this evidence on its own.
+        if (np.count_nonzero(above) >= 14 and np.count_nonzero(below) >= 14
+                and np.ptp(x[above]) >= .18 * width and np.ptp(x[below]) >= .18 * width):
+            return True
+    return _bridges_handwritten_ink(ink, x, y)
+
+
+def _bridges_handwritten_ink(ink: np.ndarray, x: np.ndarray, y: np.ndarray) -> bool:
+    """Require a short stroke to cross separate ink groups and bridge a gap."""
+    height, width = ink.shape
+    lines = cv2.HoughLinesP(np.uint8(ink) * 255, 1, np.pi / 180,
+                            threshold=round(.34 * width), minLineLength=round(.47 * width),
+                            maxLineGap=max(2, round(.035 * width)))
+    if lines is None:
+        return False
+    line_ink = cv2.dilate(np.uint8(ink), np.ones((3, 1), dtype=np.uint8))
+    for x1, y1, x2, y2 in lines[:, 0]:
+        if abs(x2 - x1) < .47 * width or abs(y2 - y1) > .75 * height:
+            continue
+        slope = (y2 - y1) / (x2 - x1)
+        midpoint = y1 + slope * (width * .5 - x1)
+        if not .20 * height < midpoint < .80 * height:
+            continue
+        cols = np.arange(min(x1, x2), max(x1, x2) + 1)
+        rows = np.rint(y1 + slope * (cols - x1)).astype(int)
+        coverage = np.mean(line_ink[rows, cols])
+        if coverage < .90:
+            continue
+
+        distance = y - (y1 + slope * (x - x1))
+        above = (-20 < distance) & (distance < -3)
+        below = (3 < distance) & (distance < 20)
+        if (np.count_nonzero(above) < 14 or np.count_nonzero(below) < 14
+                or np.ptp(x[above]) < .18 * width or np.ptp(x[below]) < .18 * width):
+            continue
+        start, end = np.percentile(x[above | below], (10, 90))
+        overlap = min(cols[-1], end) - max(cols[0], start)
+        if overlap < .80 * (end - start):
+            continue
+
+        upper = np.bincount(x[(-10 < distance) & (distance < -3)], minlength=width) > 0
+        lower = np.bincount(x[(3 < distance) & (distance < 10)], minlength=width) > 0
+        crossings = (upper & lower)[cols]
+        starts = np.flatnonzero(crossings & ~np.r_[False, crossings[:-1]])
+        ends = np.flatnonzero(crossings & ~np.r_[crossings[1:], False])
+        substantial = ends > starts
+        starts, ends = starts[substantial], ends[substantial]
+        if len(starts) < 2 or starts[-1] - ends[0] < .16 * width:
+            continue
+        # Along a true cancellation the stroke continues through paper
+        # between the crossed glyphs. An elongated digit alone cannot do that.
+        interval = cols[ends[0]:starts[-1] + 1]
+        gap = (~upper & ~lower)[interval]
+        if np.any(gap[:-2] & gap[1:-1] & gap[2:]):
+            return True
+        # Dense writing can close the gap on one side of a cancellation.
+        # Require a continuous horizontal stroke through at least four
+        # crossings, plus a visible tail beyond the outer crossings.
+        tail = max(starts[0], len(cols) - 1 - ends[-1])
+        if len(starts) < 4 or abs(y2 - y1) > 4 or coverage < .98 or tail < .07 * width:
+            continue
+        for clear in (~upper[interval], ~lower[interval]):
+            if np.any(clear[:-2] & clear[1:-1] & clear[2:]):
+                return True
+    return False
 
 
 def _time_candidate(cell: Image.Image) -> str:
@@ -152,26 +408,39 @@ def _time_candidate(cell: Image.Image) -> str:
     return primary or alternate
 
 
-def scan_this_form(sheet, image: Image.Image) -> None:
-    """Recognize complete registered cells; every result remains a proposal."""
+def scan_this_form(sheet, image: Image.Image) -> bool:
+    """Try the single-pair reader; every recognized clock remains a proposal."""
     from .core import DISPLAY
     from .ocr import _ocr_cell
-    from .line_ocr import PHOTO_VIEWS, LineOCRError, choose_clock, get_recognizer
-    from .photo_grid import find_photo_grid
-    upright = ImageOps.exif_transpose(image).convert('RGB')
-    rotation = 0
-    if upright.width > upright.height:
-        upright = upright.rotate(90,expand=True)
-        rotation = 90
-    page = normalized_page(upright)
+    from .line_ocr import PHOTO_VIEWS, LineOCRError, choose_clock, get_recognizer, photo_clock_text
+    from .photo_grid import find_photo_grid, find_shadowed_photo_grid
+    upright, rotation = _portrait(image)
+    left, paper_top, right, paper_bottom = _paper_box(upright)
+    paper = upright.crop((left, paper_top, right, paper_bottom))
+    page = paper.resize((PAGE_W, PAGE_H), Image.Resampling.LANCZOS)
+    flipped_page = None if _header_matches(page) else page.rotate(180)
+    flip = flipped_page is not None and _header_matches(flipped_page)
+    grid = find_photo_grid(flipped_page if flip else page)
+    if flipped_page is not None and not flip and grid is None:
+        # The table can identify the form even when the page heading is
+        # unreadable. Only a verified table can select this orientation.
+        grid = find_photo_grid(flipped_page)
+        if grid is None:
+            return False
+        flip = True
+    if grid is None:
+        # The header established the form and orientation. Flatten shadows
+        # only for printed registration. OCR still sees the original pixels.
+        grid = find_shadowed_photo_grid(flipped_page if flip else page)
+    if flip:
+        paper = paper.rotate(180)
+        page = flipped_page
+        rotation = (rotation + 180) % 360
+        left, right = upright.width - right, upright.width - left
+        paper_top, paper_bottom = upright.height - paper_bottom, upright.height - paper_top
     sheet.form_type = FORM_ID
-    if not _header_matches(page) and _header_matches(page.rotate(180)):
-        upright = upright.rotate(180,expand=True)
-        page = page.rotate(180)
-        rotation = (rotation+180)%360
     sheet.archive_rotation = rotation
     sheet.rotate_180_for_archive = rotation == 180
-    grid = find_photo_grid(page)
     warnings = ["OCR suggestions require checking every punch against the original photograph.",
                 "Use a suggested time only after comparing it with the photograph."]
     if grid is None:
@@ -180,7 +449,7 @@ def scan_this_form(sheet, image: Image.Image) -> None:
             for field in PUNCH_COLUMNS:
                 day.observations[field] = {'status':'alignment-failed','raw':''}
         sheet.scan_warnings = warnings
-        return
+        return True
     # Derive the employee area from the actual registered columns and first row.
     x = grid.cell_quad(0,0)[0][0]
     top = grid.cell_quad(0,0)[0][1]
@@ -188,7 +457,7 @@ def scan_this_form(sheet, image: Image.Image) -> None:
                      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz')
     name = re.sub(r'(?<=[a-z])(?=[A-Z])',' ',name).strip()
     sheet.employee = name if len(name) >= 4 and len(name.split()) >= 2 else ''
-    left,paper_top,right,paper_bottom = _paper_box(upright)
+    source_grid = replace(grid, image_size=paper.size)
     sheet.review_boxes = []
     cells = []
     for row in range(14):
@@ -201,20 +470,54 @@ def scan_this_form(sheet, image: Image.Image) -> None:
             round(left+min(PAGE_W,x2)*(right-left)/PAGE_W),
             round(paper_top+min(PAGE_H,y2)*(paper_bottom-paper_top)/PAGE_H)])
         for col,field in enumerate(PUNCH_COLUMNS):
-            cell = grid.crop_cell(page,row,col)
-            if not _has_ink(cell):
+            cell = source_grid.crop_cell(paper, row, col)
+            # The ink gate's thresholds are in normalized pixels. Send the
+            # native rectified crop to the reader so it keeps faint strokes.
+            ink_view = cell.resize(grid.crop_size(row, col), Image.Resampling.LANCZOS)
+            if not _has_ink(ink_view):
                 sheet.days[row].recognized[field] = ''
-                sheet.days[row].observations[field] = {'status':'blank','raw':''}
+                status = 'possible-faint-ink' if _has_faint_ink(ink_view) else 'blank'
+                sheet.days[row].observations[field] = {'status':status,'raw':''}
+                if status == 'possible-faint-ink':
+                    warnings.append(f'Week {row//7+1} {DISPLAY[row%7]}, {field}: check faint writing')
             else:
                 cells.append((row,field,cell))
     readings = [[] for _ in cells]
+    primary_failed = False
     if cells:
         try:
             readings = get_recognizer().recognize([cell for _,_,cell in cells],views=PHOTO_VIEWS)
         except LineOCRError as exc:
-            warnings.append(f'{exc}. Enter written punches from the photograph.')
-    for (row,field,cell),candidates in zip(cells,readings):
-        decision = choose_clock(candidates)
+            primary_failed = True
+            warnings.append(f'{exc}. Any alternate reading is for review only. Enter punches from the photograph.')
+    readings = [[replace(reading, text=photo_clock_text(reading.text)) for reading in candidates]
+                for candidates in readings]
+    decisions = [choose_clock(candidates) for candidates in readings]
+    second_pass = [i for i, decision in enumerate(decisions)
+                   if primary_failed or (readings[i] and not decision.value)]
+    preferred = {}
+    if second_pass:
+        from .clock_ocr import corroborate_clock, get_clock_recognizer, review_transcription
+        try:
+            extra = get_clock_recognizer().recognize([cells[i][2] for i in second_pass])
+        except LineOCRError as exc:
+            warnings.append(str(exc) + '. Verify unclear writing from the photograph.')
+        else:
+            for i, secondary in zip(second_pass, extra):
+                if primary_failed:
+                    transcript = review_transcription(secondary)
+                    if transcript and not _has_strike_through(cells[i][2]):
+                        decisions[i] = replace(decisions[i], raw=transcript.text, status='alternate-reader-review')
+                        preferred[i] = transcript
+                else:
+                    decisions[i], preferred[i] = corroborate_clock(readings[i], secondary, decisions[i])
+    for i, ((row,field,cell), candidates, decision) in enumerate(zip(cells,readings,decisions)):
+        if decision.value and (_has_strike_through(cell) or _has_color_cancellation(cell)):
+            decision = replace(decision, value='', status='possible-strike-through')
+        if decision.value and _has_overlapping_ink_colors(cell):
+            decision = replace(decision, value='', status='possible-overwrite')
+        if decision.value and _has_stacked_ink(cell):
+            decision = replace(decision, value='', status='possible-stacked-writing')
         day = sheet.days[row]
         day.recognized[field] = decision.raw
         day.observations[field] = {
@@ -222,9 +525,13 @@ def scan_this_form(sheet, image: Image.Image) -> None:
             'candidates':[{'text':r.text,'confidence':r.confidence,'minimum':r.minimum,'source':r.source}
                           for r in candidates],
             'confidence_is_calibrated':False}
+        if transcript := preferred.get(i):
+            day.observations[field]['transcription'] = {'text': transcript.text,
+                                                        'confidence': transcript.confidence}
         if decision.value:
             warnings.append(f'Week {row//7+1} {DISPLAY[row%7]}, {field}: compare the suggested time with the photograph')
         else:
             warnings.append(f"Week {row//7+1} {DISPLAY[row%7]}, {field}: writing needs review "
                             f"— {decision.status} (read: {decision.raw[:60]})")
     sheet.scan_warnings = warnings
+    return True

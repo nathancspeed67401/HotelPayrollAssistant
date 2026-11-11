@@ -18,3 +18,18 @@ The application authors do not claim ownership of these pretrained weights.
 The application's image preprocessing and recognition adapter are separate
 code. No real employee image, handwriting crop, or payroll record is embedded
 in these public weights or the source repository.
+
+## Clock-specific second reader
+
+`clock_reader_v1.onnx` was trained on fictional clock strings composed from
+public EMNIST Balanced glyphs, with synthetic punctuation and image
+distortions. The public input hashes are recorded in
+`experiments/character_training_evaluation.json`. The trainer is
+`experiments/train_clock_reader.py`. The original EMNIST authors are
+Gregory Cohen, Saeed Afshar, Jonathan Tapson and André van Schaik.
+[NIST EMNIST Dataset](https://www.nist.gov/itl/products-and-services/emnist-dataset)
+
+Model SHA-256
+`a6c19d350b488824b31366f3caf71a4994c7223cac20dde18d3d7c0c4bacb60f`.
+The application verifies this hash before inference. Payroll forms and their
+labels were used for evaluation and selecting the recognition policy.
